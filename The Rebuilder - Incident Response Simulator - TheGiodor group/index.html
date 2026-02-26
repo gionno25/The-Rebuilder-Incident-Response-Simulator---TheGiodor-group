@@ -1,0 +1,2642 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>The Rebuilder — Arcade Prototype (v3.4.1)</title>
+    <style>
+        :root {
+            --text: #eaf0ff;
+            --muted: #aab6e8;
+            --accent: #35d0ff;
+            --danger: #ff4b6e;
+            --ok: #33d17a;
+            --warn: #ffb020;
+            --border: rgba(255, 255, 255, .12);
+            --shadow: 0 12px 30px rgba(0, 0, 0, .35);
+            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--sans);
+            background: linear-gradient(180deg, #060913, #070b16);
+            color: var(--text);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+
+        /* HUD redesigned */
+        .hud {
+            position: fixed;
+            left: 0;
+            right: 0;
+            top: 0;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(6, 9, 19, .78);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(6px);
+            z-index: 10;
+        }
+
+        .hud .left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+
+        .hud .center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            letter-spacing: .6px;
+            color: rgba(255, 255, 255, .92);
+            text-transform: uppercase;
+            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .03);
+            padding: 7px 12px;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .hud .right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.05;
+        }
+
+        .brand .t {
+            font-weight: 900;
+            font-size: 13px
+        }
+
+        .brand .s {
+            font-size: 11.5px;
+            color: var(--muted)
+        }
+
+        .pillBig {
+            border: 1px solid var(--border);
+            padding: 7px 10px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .04);
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            font-size: 12px;
+            color: var(--muted);
+            min-width: 132px;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pillBig b {
+            color: var(--text);
+            font-weight: 900;
+            font-size: 14px
+        }
+
+        .pillBig.sec {
+            border-color: rgba(53, 208, 255, .28)
+        }
+
+        .pillBig.prod {
+            border-color: rgba(155, 140, 255, .28)
+        }
+
+        .pillBig.spr {
+            border-color: rgba(255, 75, 110, .28)
+        }
+
+        .pillSmall {
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .03);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            white-space: nowrap;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .pillSmall b {
+            color: var(--text);
+            font-weight: 800
+        }
+
+        button {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .04);
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: var(--sans);
+            font-size: 12px;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, .07)
+        }
+
+        button.primary {
+            border-color: rgba(53, 208, 255, .35);
+            background: rgba(53, 208, 255, .12)
+        }
+
+        button.danger {
+            border-color: rgba(255, 75, 110, .35);
+            background: rgba(255, 75, 110, .10)
+        }
+
+        /* Score update flash */
+        .pillBig.flash::after {
+            content: "";
+            position: absolute;
+            inset: -2px;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 65%);
+            opacity: .0;
+            animation: flash 900ms ease-out 1;
+            pointer-events: none;
+        }
+
+        @keyframes flash {
+            0% {
+                opacity: 0
+            }
+
+            18% {
+                opacity: 1
+            }
+
+            100% {
+                opacity: 0
+            }
+        }
+
+        #game {
+            position: fixed;
+            left: 0;
+            right: 0;
+            top: 54px;
+            bottom: 0;
+            width: 100vw;
+            height: calc(100vh - 54px);
+            display: block;
+            background: transparent;
+        }
+
+        .side {
+            position: fixed;
+            top: 64px;
+            right: 12px;
+            width: min(360px, calc(100vw - 24px));
+            max-height: calc(100vh - 76px);
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(15, 25, 51, .92), rgba(10, 14, 30, .88));
+            box-shadow: var(--shadow);
+            z-index: 9;
+        }
+
+        .side .hd {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, .14);
+        }
+
+        .side .hd .k {
+            font-weight: 800;
+            font-size: 13px
+        }
+
+        .side .bd {
+            padding: 12px
+        }
+
+        .note {
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.45
+        }
+
+        .mono {
+            font-family: var(--mono)
+        }
+
+        .sep {
+            height: 1px;
+            background: var(--border);
+            margin: 10px 0
+        }
+
+        .logItem {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 9px;
+            background: rgba(255, 255, 255, .02);
+            margin-bottom: 8px;
+        }
+
+        .logItem .t {
+            font-weight: 800;
+            font-size: 12px
+        }
+
+        .logItem .b {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 3px
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, .60);
+            z-index: 100;
+        }
+
+        .modal {
+            width: fit-content;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(15, 25, 51, .97), rgba(8, 10, 22, .97));
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .modal .hd {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal .hd .k {
+            font-weight: 900
+        }
+
+        .modal .bd {
+            padding: 12px
+        }
+
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px
+        }
+
+        @media (max-width:900px) {
+            .grid2 {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+            background: rgba(255, 255, 255, .02);
+            margin-bottom: 10px;
+        }
+
+        .card-bottom-right {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-bottom-right #btnContinue {
+            margin-top: auto;
+            align-self: flex-end;
+        }
+
+        label {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        select {
+            width: 100%;
+            margin-top: 6px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, .30);
+            color: var(--text);
+            outline: none;
+            font-family: var(--sans);
+        }
+
+        select option {
+            background-color: #0b1020;
+            color: var(--text);
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        .row.spread {
+            justify-content: space-between
+        }
+
+        .hint {
+            display: none;
+            border: 1px solid rgba(255, 176, 32, .35);
+            background: rgba(255, 176, 32, .09);
+            border-radius: 12px;
+            padding: 8px 10px;
+            color: #ffe8bf;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .tooltip {
+            position: fixed;
+            display: none;
+            max-width: 280px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(53, 208, 255, .35);
+            background: rgba(10, 14, 30, .92);
+            color: var(--text);
+            box-shadow: var(--shadow);
+            z-index: 50;
+            pointer-events: none;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .tooltip .t {
+            font-weight: 800;
+            margin-bottom: 4px
+        }
+
+        .tooltip .b {
+            color: var(--muted)
+        }
+
+        @keyframes dangerPulse {
+            0% {
+                opacity: 0.2;
+            }
+
+            50% {
+                opacity: 0.55;
+            }
+
+            100% {
+                opacity: 0.2;
+            }
+        }
+
+        .bg-danger-pulse {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, rgba(255, 75, 110, 0.2) 0%, rgba(10, 14, 30, 0.20) 80%);
+            pointer-events: none;
+            z-index: 1;
+            animation: dangerPulse 1500ms infinite ease-in-out;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <audio id="bgMusic" loop preload="auto">
+        <source src="background_music.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="respondBg" class="bg-danger-pulse"></div>
+    <div class="hud">
+        <div class="left">
+            <div class="brand">
+                <div class="t">The Rebuilder</div>
+                <div class="s">NovaTech Industries</div>
+            </div>
+            <div class="pillSmall">Best <b id="hudBest">—</b></div>
+        </div>
+
+        <div class="center" id="hudCenterTitle">FLOOR: HOME</div>
+
+        <div class="right">
+            <div class="pillBig sec" id="pillSec">Security <b id="hudSec">60</b></div>
+            <div class="pillBig prod" id="pillProd">Productivity <b id="hudProd">70</b></div>
+            <div class="pillBig spr" id="pillSpread">Spread <b id="hudSpread">0</b></div>
+            <button id="btnMenu" class="primary">Menu</button>
+        </div>
+    </div>
+
+    <canvas id="game" width="960" height="540">Your browser does not support canvas.</canvas>
+
+    <div class="side">
+        <div class="hd">
+            <div class="k">Assistant &amp; IR Logbook</div>
+        </div>
+        <div class="bd">
+            <div class="hint" id="hintBox"></div>
+            <div class="sep"></div>
+            <div id="logbook"></div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip">
+        <div class="t" id="ttTitle">Title</div>
+        <div class="b" id="ttBody">Body</div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="modal">
+            <div class="hd">
+                <div class="k" id="modalTitle">Modal</div>
+                <div class="row">
+                    <button id="modalClose">Close</button>
+                </div>
+            </div>
+            <div class="bd" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================
+           Storage / helpers
+           ========================= */
+        const STORAGE_KEY = "rebuilder_arcade_v3_4_fixed";
+        const BEST_KEY = "rebuilder_best_run_v2";
+
+        const $ = (s) => document.querySelector(s);
+        const canvas = $("#game");
+        const ctx = canvas.getContext("2d");
+
+        const music = document.getElementById("bgMusic");
+        let musicEnabled = true;
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+        function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c])); }
+
+        function formatDateTime(ts) {
+            const d = new Date(ts);
+            const pad = (n) => String(n).padStart(2, "0");
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function startMusic() {
+            if (musicEnabled) music.play().catch(() => { });
+        }
+
+        function toggleMusic() {
+            musicEnabled = !musicEnabled;
+            if (musicEnabled) {
+                music.play().catch(() => { });
+            } else {
+                music.pause();
+            }
+            // Aggiorna il label del bottone nel menu se è aperto
+            const btn = document.getElementById("mToggleMusic");
+            if (btn) btn.textContent = musicEnabled ? "🔊 Music: ON" : "🔇 Music: OFF";
+        }
+
+        /* =========================
+         Scoring (centralizzato)
+        ========================= */
+        const SCORE = {
+            perAction: { sec: 12, prod: 10, spread: 18 },
+            smoothing: 0.55,
+            protectCriticalBonus: 1.0,
+            protectNonCriticalBonus: 0.55,
+            diminishing: [1.0, 0.72, 0.55, 0.42, 0.34],
+        };
+
+        function smoothApply(current, target, alpha) {
+            return current + (target - current) * alpha;
+        }
+
+        function applyScoreDelta({ sec = 0, prod = 0, spread = 0 }, reason = "") {
+            sec = clamp(sec, -SCORE.perAction.sec, SCORE.perAction.sec);
+            prod = clamp(prod, -SCORE.perAction.prod, SCORE.perAction.prod);
+            spread = clamp(spread, -SCORE.perAction.spread, SCORE.perAction.spread);
+
+            const tSec = clamp(state.security + sec, 0, 100);
+            const tProd = clamp(state.productivity + prod, 0, 100);
+            const tSpr = clamp(state.spread + spread, 0, 100);
+
+            state.security = smoothApply(state.security, tSec, SCORE.smoothing);
+            state.productivity = smoothApply(state.productivity, tProd, SCORE.smoothing);
+            state.spread = smoothApply(state.spread, tSpr, SCORE.smoothing);
+        }
+
+
+        /* =========================
+           Data
+           ========================= */
+        const ASSETS = [
+            {
+                id: "crm",
+                name: "CRM Server",
+                desc: "Manages all client data, active contracts, and sales pipelines. If this goes offline, the sales team is completely blind.",
+                tagged: false, dataType: null, critical: null, controls: [], compromised: false
+            },
+            {
+                id: "hr",
+                name: "HR Database",
+                desc: "Stores highly sensitive employee records, banking details, and payroll data. A leak here would be a massive privacy breach.",
+                tagged: false, dataType: null, critical: null, controls: [], compromised: false
+            },
+            {
+                id: "web",
+                name: "Public Web Portal",
+                desc: "The company's external landing page for visitors. It only hosts public marketing material and no sensitive data.",
+                tagged: false, dataType: null, critical: null, controls: [], compromised: false
+            },
+            {
+                id: "files",
+                name: "File Server",
+                desc: "Internal network drive for daily document sharing. Convenient for staff, but not strictly vital for core business operations.",
+                tagged: false, dataType: null, critical: null, controls: [], compromised: false
+            },
+            {
+                id: "prod",
+                name: "Production Control System",
+                desc: "The OT (Operational Technology) brain that runs the factory floor machinery. If this stops, the entire physical production line halts.",
+                tagged: false, dataType: null, critical: null, controls: [], compromised: false
+            },
+        ];
+
+
+        const MODULES = [
+            {
+                id: "mfa", short: "MFA", label: "MFA (second factor)", sec: +10, prod: -6,
+                tip: "Second factor (OTP/app). Reduces risk if a password is stolen. Great security boost, but drops employee productivity."
+            },
+            {
+                id: "patch", short: "Patch", label: "Patch (updates)", sec: +12, prod: -4,
+                tip: "Updates systems/software. Reduces exploits on known vulnerabilities. Top-tier defense, though system reboots cause moderate downtime in productivity."
+            },
+            {
+                id: "fw", short: "FW", label: "Firewall", sec: +9, prod: -3,
+                tip: "Network rules: limits risky traffic and lateral movements. Strong network protection with only a slight disruption to daily operations."
+            },
+            {
+                id: "enc", short: "ENC", label: "Encryption", sec: +7, prod: -2,
+                tip: "Protects data confidentiality if stolen (harder to read). Baseline security that runs in the background with almost zero impact on productivity."
+            },
+        ];
+
+
+        const DETECT_LOGS = [
+            { id: "l2", text: "Multiple failed logins user=admin ip=10.12.9.44", truth: "suspicious", why: "Brute-force on privileged account." },
+            { id: "l3", text: "New admin created: svc_backup", truth: "suspicious", why: "Persistence: suspicious new admin." },
+            { id: "l4", text: "Unusual outbound traffic to 185.xx.xx.12:443", truth: "suspicious", why: "Possible Command&Control (C2)." },
+            { id: "l6", text: "DNS query: random-subdomain.example[.]com", truth: "suspicious", why: "Anomalous DNS: possible beaconing." },
+            { id: "l8", text: "File rename burst on FILES share", truth: "suspicious", why: "Typical ransomware pattern (many renames)." },
+            { id: "l1", text: "Login OK user=j.smith ip=10.12.4.8", truth: "benign", why: "Normal event (single successful login)." },
+            { id: "l7", text: "Antivirus signature update completed", truth: "benign", why: "Routine activity." },
+        ];
+
+        const ROOMS = [
+            { id: "soc", name: "SOC Console", compromised: true, contained: false },
+            { id: "srv", name: "Server Room", compromised: true, contained: false },
+            { id: "office", name: "Offices/OpenSpace", compromised: false, contained: false },
+            { id: "net", name: "Network Closet", compromised: false, contained: false },
+        ];
+
+        const RESTORE_PROFILE = {
+            crm: { cleanProdCost: 9, latestProdCost: 3, latestReinf: 12, cleanReinf: 3, cleanSpread: 0, latestSpread: 2 },
+            hr: { cleanProdCost: 10, latestProdCost: 4, latestReinf: 14, cleanReinf: 3, cleanSpread: 0, latestSpread: 2 },
+            web: { cleanProdCost: 5, latestProdCost: 2, latestReinf: 7, cleanReinf: 2, cleanSpread: 0, latestSpread: 1 },
+            files: { cleanProdCost: 8, latestProdCost: 3, latestReinf: 10, cleanReinf: 3, cleanSpread: 0, latestSpread: 2 },
+            prod: { cleanProdCost: 14, latestProdCost: 5, latestReinf: 16, cleanReinf: 4, cleanSpread: 1, latestSpread: 3 },
+        };
+
+        const bgHome = new Image();
+        bgHome.src = 'background_home.png';
+
+        /* =========================
+           State
+           ========================= */
+        function freshState() {
+            return {
+                version: 34,
+                floor: "home",
+                security: 50,
+                productivity: 100,
+                spread: 0,
+                lastActionAt: Date.now(),
+                assets: structuredClone(ASSETS),
+                protectBudget: 5,
+
+                levelSummary: { identify: null, protect: null, detect: null, respond: null, recover: null },
+
+                detect: { classified: {}, done: false, suspiciousScore: 0, results: null },
+
+                respond: {
+                    timer: 80, running: false, rooms: structuredClone(ROOMS), actions: [], tick: 0,
+                    autoStartArmed: false,
+                    backups: 0,
+
+                    isolateUsed: false,
+                    isolateTarget: null,
+                    isolateEffect: 1.0,
+                    lastMoleAt: 0
+                },
+
+                recover: { restoreChoices: {}, improvements: { segmentation: false, strongerControls: false } },
+
+                logbook: [
+                    { t: "Scenario", b: "NovaTech Industries was brought nearly to a standstill by a cyberattack. Navigate 5 floors (NIST CSF): Identify → Protect → Detect → Respond → Recover." }
+                ],
+
+                finalReport: null,
+                ui: { bannerText: null, bannerColor: null, bannerUntil: 0 },
+
+                lastHud: { sec: null, prod: null, spr: null }
+            };
+        }
+        let state = freshState(); //non fa iniziare partita con i load precedenti
+
+        /* =========================
+           UI refs
+           ========================= */
+        const ui = {
+            hudBest: $("#hudBest"),
+            hudCenterTitle: $("#hudCenterTitle"),
+            hudSec: $("#hudSec"),
+            hudProd: $("#hudProd"),
+            hudSpread: $("#hudSpread"),
+            pillSec: $("#pillSec"),
+            pillProd: $("#pillProd"),
+            pillSpread: $("#pillSpread"),
+            assistantText: $("#assistantText"),
+            logbook: $("#logbook"),
+            hintBox: $("#hintBox"),
+            overlay: $("#overlay"),
+            modalTitle: $("#modalTitle"),
+            modalBody: $("#modalBody"),
+            tooltip: $("#tooltip"),
+            ttTitle: $("#ttTitle"),
+            ttBody: $("#ttBody"),
+        };
+
+        function setAction() { state.lastActionAt = Date.now(); ui.hintBox.style.display = "none"; }
+        function addLog(t, b) { state.logbook.unshift({ t, b }); renderLogbook(); }
+        function toastHint(text) { ui.hintBox.textContent = text; ui.hintBox.style.display = "block"; }
+
+        function openModal(title, bodyHtml) {
+            ui.modalTitle.textContent = title;
+            ui.modalBody.innerHTML = bodyHtml;
+            ui.overlay.style.display = "flex";
+        }
+        function closeModal() { ui.overlay.style.display = "none"; }
+
+        $("#modalClose").onclick = () => { closeModal(); onModalClosed(); };
+        ui.overlay.onclick = (ev) => { if (ev.target === ui.overlay) { closeModal(); onModalClosed(); } };
+
+        /* =========================
+           Best run storage
+           ========================= */
+        function getBestRun() {
+            const raw = localStorage.getItem(BEST_KEY);
+            if (!raw) return null;
+            try {
+                const obj = JSON.parse(raw);
+                if (!obj || typeof obj.overall !== "number") return null;
+                return obj;
+            } catch { return null; }
+        }
+        function setBestRunIfBetter(run) {
+            const best = getBestRun();
+            if (!best || run.overall > best.overall) {
+                localStorage.setItem(BEST_KEY, JSON.stringify(run));
+                addLog("Best Run", `New best run: ${run.overall}/100 (${formatDateTime(run.at)}).`);
+            }
+        }
+        function renderBest() {
+            const best = getBestRun();
+            if (!best) { ui.hudBest.textContent = "—"; return; }
+            ui.hudBest.textContent = `${best.overall}/100`;
+        }
+
+
+
+        /* =========================
+           HUD update + flash when values change
+           ========================= */
+        function flash(el) {
+            el.classList.remove("flash");
+            void el.offsetWidth;
+            el.classList.add("flash");
+        }
+
+        function floorName(f) {
+            if (f === "home") return "HOME";
+            if (f === "identify") return "IDENTIFY";
+            if (f === "protect") return "PROTECT";
+            if (f === "detect") return "DETECT";
+            if (f === "respond") return "RESPOND";
+            if (f === "recover") return "RECOVER";
+            if (f === "report") return "REPORT";
+            return String(f).toUpperCase();
+        }
+
+        function renderHud() {
+            ui.hudCenterTitle.textContent = `FLOOR: ${floorName(state.floor)}`;
+
+            const sec = Math.round(state.security);
+            const prod = Math.round(state.productivity);
+            const spr = Math.round(state.spread);
+
+            if (state.lastHud.sec !== null && sec !== state.lastHud.sec) flash(ui.pillSec);
+            if (state.lastHud.prod !== null && prod !== state.lastHud.prod) flash(ui.pillProd);
+            if (state.lastHud.spr !== null && spr !== state.lastHud.spr) flash(ui.pillSpread);
+
+            ui.hudSec.textContent = sec;
+            ui.hudProd.textContent = prod;
+            ui.hudSpread.textContent = spr;
+
+            state.lastHud.sec = sec;
+            state.lastHud.prod = prod;
+            state.lastHud.spr = spr;
+
+            renderBest();
+        }
+
+        function renderLogbook() {
+            ui.logbook.innerHTML = "";
+            state.logbook.slice(0, 8).forEach(e => {
+                const div = document.createElement("div");
+                div.className = "logItem";
+                div.innerHTML = `<div class="t">${escapeHtml(e.t)}</div><div class="b">${escapeHtml(e.b)}</div>`;
+                ui.logbook.appendChild(div);
+            });
+        }
+
+        /* =========================
+           Save/Load autoslot
+           ========================= */
+        function saveAutoslot() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+        function load() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return null;
+            try {
+                const s = JSON.parse(raw);
+                if (!s || s.version !== 34) return null;
+                return s;
+            } catch { return null; }
+        }
+
+        function resetRunToHome(isMenu) {
+            if (isMenu) {
+                // Mostra il modal di conferma
+                openModal("Warning!", `
+                    <div class="card">
+                        <div class="note" style="color:var(--danger); font-weight:bold;">Are you sure you want to restart?</div>
+                        <div class="sep"></div>
+                        <div class="note">All your current progress will be lost and you will return to the home screen.</div>
+                        <div class="sep"></div>
+                        <div class="row spread">
+                            <button id="btnCancelRestart">Cancel</button>
+                            <button class="danger" id="btnConfirmRestart">Yes, Restart</button>
+                        </div>
+                    </div>
+                `);
+
+                document.getElementById("btnCancelRestart").onclick = () => {
+                    closeModal(); // Chiude il warning senza fare nulla
+                };
+
+                document.getElementById("btnConfirmRestart").onclick = () => {
+                    closeModal();
+                    // Esegue il reset effettivo
+                    performReset();
+                };
+            } else {
+                // Se non viene dal menu (es: da una fine livello o fine gioco), esegue il reset direttamente
+                performReset();
+            }
+        }
+
+        // Funzione helper che fa il vero reset dei dati
+        function performReset() {
+            localStorage.removeItem(STORAGE_KEY);
+            const best = getBestRun();
+            state = freshState();
+            saveAutoslot();
+            renderBest();
+            setFloor("home", false);
+            toastHint(best ? `New run. Best: ${best.overall}/100 (${formatDateTime(best.at)})` : "New run.");
+        }
+
+
+        /* =========================
+   Menu
+   ========================= */
+        function openMenu() {
+            const btnText = musicEnabled ? "🔊 Music: ON" : "🔇 Music: OFF";
+
+            openModal("Menu", `
+                <!-- Utilizziamo flexbox in colonna per una lista pulita di bottoni -->
+                <div style="min-width: 350px; display: flex; flex-direction: column; gap: 15px; padding: 10px 5px;">
+                    
+                    <button class="primary" id="mBrief" style="padding: 12px; font-size: 14px;">📖 Level Brief</button>
+                    
+                    <button id="mToggleMusic" style="padding: 12px; font-size: 14px;">${btnText}</button>
+                    
+                    <button id="mBest" style="padding: 12px; font-size: 14px;">🏆 View Best Score</button>
+                    
+                    <div class="sep" style="margin: 10px 0;"></div>
+                    
+                    <div class="note" style="text-align: center; color: var(--danger); font-size: 11px; margin-bottom: -5px;">Warning: Progress will be lost</div>
+                    <button class="danger" id="mHome" style="padding: 12px; font-size: 14px; font-weight: bold;">🚪 Return to Home</button>
+
+                </div>
+            `);
+
+            // Binding delle azioni (assicurati che chiamino le funzioni che abbiamo già creato/modificato)
+            $("#mBrief").onclick = () => { setAction(); closeModal(); openBrief(); };
+
+            $("#mToggleMusic").onclick = () => {
+                toggleMusic();
+                // Aggiorna istantaneamente il testo del bottone senza chiudere il menu
+                const currentText = musicEnabled ? "🔊 Music: ON" : "🔇 Music: OFF";
+                $("#mToggleMusic").textContent = currentText;
+            };
+
+            $("#mBest").onclick = () => { setAction(); closeModal(); openBestInfo(); };
+
+            $("#mHome").onclick = () => { setAction(); closeModal(); resetRunToHome(true); };
+        }
+
+
+        /* =========================
+           Guide
+           ========================= */
+        let guidePage = 0;
+        const guideSlides = [
+            {
+                title: "WELCOME ABOARD, REBUILDER!",
+                body: "<strong>You Have a Mission</strong><br>NovaTech Industries is going through a critical moment due to a cyberattack, and this is exactly where you come in!<br>As our new specialist, you have the unique opportunity to guide the company out of the emergency.<br>You're not just here to fix servers — you're here to become the architect of our new resilience.<br><br><strong>Your Journey</strong><br>One Step at a Time. You will explore NovaTech's infrastructure, a five-floor building.<br>Don't worry about complexity: each floor is a stage of the journey based on the NIST Framework, designed to gradually teach you how to identify, protect, and defend our digital world.<br><br><strong>Never Alone</strong><br>At any time you can rely on a Virtual Guide and your Logbook, which will assist you with tips and suggestions.<br><br><strong>Your Goal</strong><br>After restoring our systems, you will receive a personalized Security Report.<br>It will be your trophy: concrete proof of how your decisions protected the economy and the work of all of NovaTech.",
+            },
+            {
+                title: "NIST Cybersecurity Framework",
+                body: "The game is inspired by the <strong>NIST Cybersecurity Framework</strong>, the <strong>standard that guides organizations in managing cyber risks</strong>.<br>Its five functions become interactive challenges on the five floors of NovaTech Industries, hit by a paralyzing cyberattack.<br><br><strong>Floor 1 – Identify</strong><br>Analyze the digital environment: discover critical assets, vulnerabilities, and risks. Build the security map, defining priorities.<br><br><strong>Floor 2 – Protect</strong><br>Build the defense: activate MFA, patches, encryption, and training. Strengthen the perimeter by reducing the attack surface.<br><br><strong>Floor 3 – Detect</strong><br>Configure monitoring and alerts to intercept anomalies. Identifying threats in time saves the game.<br><br><strong>Floor 4 – Respond</strong><br>When the incident explodes, act immediately: contain the threat quickly and calmly. Manage pressure and resources to limit damage.<br><br><strong>Floor 5 – Recover</strong><br>Restore systems, verify integrity, and improve policies. Strengthen NovaTech against future threats.",
+            },
+            {
+                title: "YOUR SUCCESS: Manage the Three Pillars",
+                body: "<strong>It's Not Just About Scores</strong><br>Your success depends on how you balance <strong>Security, Productivity, and Containment throughout the entire game</strong>.<br>Always keep an eye on the real-time indicators: they show whether your choices are working and how to optimize them for the next floors.<br><br><strong>Learning Without Fear</strong><br>There is no 'Game Over' here. Every choice, even if imperfect, is an opportunity to learn how to handle real cybersecurity situations.<br>Your decisions influence later levels: weak protection on one floor will make containment harder on the next,<br>but you can always recover and improve.<br><br><strong>Dynamic Balance</strong><br>You will learn to find the right mix between strict security and business operability, just like a real tech leader.<br>Monitor the indicators to understand the immediate impact of your actions.<br><br><strong>The Three Key Indicators</strong><br><strong>- Security</strong>: The heart of the mission. Measures how well you protected NovaTech's data and systems, reducing future vulnerabilities.<br><strong>- Productivity</strong>: The company must keep working! Evaluates whether your security measures were balanced or too rigid, blocking colleagues' work.<br><strong>- Containment</strong>: Your readiness in stopping the malware. The less the incident spreads between floors, the higher this score.<br><br><strong>Final Report</strong><br>At the end of the game you receive the Overall Score with the three detailed indicators, an analysis of your main choices, and personalized advice to strengthen your strategy.<br>Every run is unique: try again to beat your record!",
+            }
+        ];
+
+        function openSettings() {
+            // Leggiamo lo stato attuale PRIMA di renderizzare l'HTML
+            const btnText = musicEnabled ? "🔊 Music: ON" : "🔇 Music: OFF";
+
+            openModal("Settings", `
+                <div style="min-width: 400px; min-height: 150px; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="card">
+                        <div class="note" style="color:var(--text); font-weight:bold; text-align:center; font-size:16px;">Toggle music On/Off</div>
+                        <div class="sep"></div>
+                        <div class="center" style="display:flex; justify-content:center; padding: 20px 0;">
+                            <button id="mToggleMusic" style="padding: 15px 30px; font-size: 16px;">${btnText}</button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            $("#mToggleMusic").onclick = () => { toggleMusic(); };
+        }
+
+
+
+
+        function openGuideGuide() { guidePage = 0; renderGuideGuideModal(); }
+
+        function renderGuideGuideModal() {
+            const s = guideSlides[guidePage];
+
+            const isLast = guidePage === guideSlides.length - 1;
+            const isFirst = guidePage === 0;
+
+            openModal(s.title, `
+        <div class="note" style="white-space: pre-line;">${s.body}</div>
+        
+        <div class="sep"></div>
+        <div class="row spread">
+            <div class="note">Page ${guidePage + 1}/${guideSlides.length}</div>
+            <div class="row">
+                <button id="gPrev" ${isFirst ? "disabled" : ""}>‹</button>
+                <button id="gNext" class="primary">${"›"}</button>
+            </div>
+        </div>
+    `);
+
+            $("#gPrev").onclick = () => { if (guidePage > 0) { guidePage--; renderGuideGuideModal(); } };
+            $("#gNext").onclick = () => {
+                if (isLast) {
+                } else {
+                    guidePage++;
+                    renderGuideGuideModal();
+                }
+            };
+        }
+
+        function openGuideStart() {
+            const best = getBestRun();
+            if (!best) {
+                guidePage = 0;
+                renderGuideStartModal();
+            } else {
+                setFloor("identify", true);
+            }
+        }
+
+        function renderGuideStartModal() {
+            const s = guideSlides[guidePage];
+
+            const isLast = guidePage === guideSlides.length - 1;
+            const isFirst = guidePage === 0;
+
+            openModal(s.title, `
+        <div class="note" style="white-space: pre-line;">${s.body}</div>
+        
+        <div class="sep"></div>
+        <div class="row spread">
+            <div class="note">Page ${guidePage + 1}/${guideSlides.length}</div>
+            <div class="row">
+                <button id="gPrev" ${isFirst ? "disabled" : ""}>‹</button>
+                <button id="gNext" class="primary">${isLast ? "Start (Identify)" : "›"}</button>
+            </div>
+        </div>
+    `);
+
+            $("#gPrev").onclick = () => { if (guidePage > 0) { guidePage--; renderGuideStartModal(); } };
+            $("#gNext").onclick = () => {
+                if (isLast) {
+                    closeModal(); onModalClosed();
+                    setFloor("identify", true);
+                } else {
+                    guidePage++;
+                    renderGuideStartModal();
+                }
+            };
+        }
+
+        /* =========================
+           Brief livello
+           ========================= */
+        function floorBrief(f) {
+            if (f === "identify") return {
+                title: "LEVEL 1 — IDENTIFY: Map What Matters", text: [
+                    "Welcome to the first floor of NovaTech Industries!<br><br><strong>Level Objective</strong>: build NovaTech's security map by identifying all critical assets and classifying them based on their nature and importance.<br><br><br>What to do:<br><br><strong>1) Tag all assets</strong>: analyze servers, devices, applications, archives, and internal networks. Every object you discover is a piece of your future strategy.<br><br><strong>2) Define their nature</strong>: for each asset, indicate whether it is public or private and how critical it is to the company's operations.<br><br><strong>3) Complete the mapping</strong>: once you have classified everything, click 'Finish Level'.<br><br><br><strong>Warning</strong>: Be accurate! The quality of your mapping directly determines your <b>security budget</b> for the next floor.<br>A flawless analysis gives you maximum defenses, while mistakes will leave you underfunded and vulnerable."
+                ]
+            };
+            if (f === "protect") return {
+                title: "LEVEL 2 — PROTECT: Build the Defense", text: [
+                    "Welcome to the second floor of NovaTech Industries.<br><br><strong>Level Objective</strong>: apply the right security controls to the identified assets, optimizing the balance between security and productivity.<br><br><br>What to do:<br><br><strong>1) Examine the controls panel</strong>: on the right you will find the available security measures – for example multi-factor authentication, patches, encryption, and firewall.<br><br><strong>2) Apply controls to assets</strong>: choose where to implement each measure based on criticality. Assets classified as critical should always receive at least one dedicated protection.<br><br><strong>3) Manage your budget</strong>: You have <b>${state.protectBudget}</b> controls, earned based on the accuracy of your mapping in Level 1. Use your strategic intuition to allocate resources where they are truly needed.<br><br><br><strong>Warning</strong>: If you apply too many controls indiscriminately, business productivity will drop. Colleagues may experience delays or blocks in operational processes.<br>So focus mainly on critical assets: defending what is vital reduces the impact of an attack without paralyzing the entire company."
+                ]
+            };
+            if (f === "detect") return {
+                title: "LEVEL 3 — DETECT: Uncover the Threat", text: [
+                    "Welcome to the third floor of NovaTech Industries!<br><br><strong>Level Objective</strong>: analyze the logs generated by the systems and identify signs of compromise before they turn into incidents.<br>It's time to put yourself in the shoes of a Security Operations Center (SOC) analyst and learn to distinguish noise from real danger.<br><br><br>What to do:<br><br><strong>1) Open the SOC Console</strong>: here you will find logs arriving from all company assets (servers, endpoints, firewalls, and applications).<br><br><strong>2) Classify each event</strong>: analyze the information and assign each log a category: Benign if it is normal activity, Suspicious if you notice anomalous behavior or unusual patterns.<br><br><strong>3) Confirm your analysis</strong>: once you have finished classifying, submit your assessment to consolidate it in the monitoring system, then complete the level.<br><br><br><strong>Warning</strong>: Not everything that looks anomalous is a real threat.<br>If you raise too many false alarms, analysts may lose confidence in your detections.<br>Conversely, underestimating a suspicious signal can open the door to a silent intrusion."
+                ]
+            };
+            if (f === "respond") return {
+                title: "LEVEL 4 — RESPOND: Contain the Storm", text: [
+                    "Welcome to the fourth floor of NovaTech Industries.<br><br><strong>Level Objective</strong>: survive the timed crisis! Slow down and contain the spread of the attack by acting quickly on compromised assets until the timer runs out.<br>The malware has infiltrated the systems and, as tension rises, Spread (the spread of the infection) increases automatically.<br><br><br>What to do:<br><br><strong>1) Watch the Clock and the Spread</strong>: every second counts. Watch the growing indicator and try to keep it low until the level time expires.<br><br><strong>2) Act on compromised rooms</strong>: select the affected areas and choose the most effective action among:<br><br><strong>- Isolate</strong>: you can only use this once! Try to identify the <b>true source</b> of the attack to cut it off entirely. Isolating the wrong room will drop Productivity for nothing while the malware keeps spreading.<br><br><strong>- Mitigate</strong>: apply a temporary targeted response that slows the spread. You must use this repeatedly to fight off new reinfections in the rooms until the clock runs out.<br><br><br><strong>Warning</strong>: The clock is ticking and every choice has consequences.<br>Balance the heavy, permanent impact of 'Isolate' with the temporary relief of 'Mitigate' to save NovaTech before time expires!"
+                ]
+            };
+            if (f === "recover") return {
+                title: "LEVEL 5 — RECOVER: Restore the Light", text: [
+                    "Welcome to the fifth floor of NovaTech Industries.<br><br><strong>Level Objective</strong>: restore compromised assets by choosing the most suitable recovery mode for each one, to balance security and operational continuity.<br>After the storm, it's time for renewal. You've contained the threat, but now you must bring systems back to full operation and make sure everything is intact, secure, and ready to restart.<br><br><br>What to do:<br><br><strong>1) Choose the restore type</strong>: for each asset you can select one of two options:<br><br><strong>- Latest</strong>: restores the most recent version of the data, guaranteeing speed but with a small risk that part of the malware remains.<br><br><strong>- Clean</strong>: uses an older but verified safe version. Ensures a reliable recovery, but slower and potentially with loss of recent data.<br><br><strong>2) Confirm and complete the level</strong>: once you have made the restore choices, start the process and watch NovaTech return to operation.<br><br><br><strong>Warning</strong>: Every decision determines how quickly and in what state the company will return to normal.<br>Sometimes the 'safest' option is not the 'fastest': find the balance point between integrity and continuity."
+                ]
+            };
+            if (f === "report") return null;
+            return null;
+        }
+
+
+
+        function openBrief() {
+            if (state.floor === "home") { openGuideGuide(); return; }
+            if (state.floor === "report") { openReportDetails(); return; }
+
+            const b = floorBrief(state.floor);
+            if (!b) return;
+
+            const text = b.text.map(x => `<div class="note">${x}</div>`).join("");
+
+            openModal(b.title, `
+    <div class="grid">
+      <div class="card">
+        <div class="note"><b>What to do</b></div>
+        <div class="sep"></div>
+        ${text}
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="row spread">
+      <div class="note">Close to start/continue.</div>
+    </div>
+  `);
+        }
+
+        /* =========================
+           Respond auto-start after brief closes
+           ========================= */
+        function armRespondAutoStart() { state.respond.autoStartArmed = true; saveAutoslot(); }
+        function onModalClosed() {
+            if (state.floor === "respond" && state.respond.autoStartArmed) {
+                state.respond.autoStartArmed = false;
+                startRespondTimerAuto();
+            }
+        }
+
+        /* =========================
+           Level finish summaries
+           ========================= */
+        function snapshotScores() { return { security: Math.round(state.security), productivity: Math.round(state.productivity), spread: Math.round(state.spread) }; }
+        function scoreLineHtml(s) {
+            return `
+    <div class="card card-bottom-right">
+  <div class="note"><b>Indicators (snapshot)</b></div>
+  <div class="sep"></div>
+  <div class="note">Security: <span class="mono">${s.security}</span></div>
+  <div class="note">Productivity: <span class="mono">${s.productivity}</span></div>
+  <div class="note">Spread: <span class="mono">${s.spread}</span></div>
+
+  <button class="primary" id="btnContinue">Continue</button>
+</div>
+  `;
+        }
+        function openFinishLevelModal(levelName, bodyLeftHtml, bodyRightHtml, onContinue) {
+            const s = snapshotScores();
+            openModal(`Level Summary — ${levelName}`, `
+  <div class="card">
+    ${bodyLeftHtml}
+  </div>
+
+  <div class="sep"></div>
+
+  ${scoreLineHtml(s)}
+`);
+            $("#btnContinue").onclick = () => { setAction(); closeModal(); onModalClosed(); onContinue(); };
+        }
+
+        /* =========================
+           Floor switch
+           ========================= */
+        function setFloor(f, showBrief = false) {
+            state.floor = f;
+            setAction();
+            renderHud();
+
+            if (f !== "respond") stopRespondTimer();
+
+            if (f === 'home' || f === 'report') {
+                document.querySelector('.side').style.display = 'none';
+                document.getElementById("btnMenu").style.display = 'none'
+
+            } else {
+                document.querySelector('.side').style.display = 'block';
+                document.getElementById("btnMenu").style.display = 'block'
+            }
+
+            if (f === 'protect') {
+                if (state.protectBudget >= 7) {
+                    setBanner('Excellent analysis! Management has assigned you 7 controls. Use them wisely.');
+                } else if (state.protectBudget <= 3) {
+                    setBanner('⚠️ Errors in Identify: you only have 3 controls. Choose critical assets carefully!');
+                } else {
+                    setBanner(`Assigned budget: ${state.protectBudget} controls. Start with critical assets.`);
+                }
+            }
+
+            renderLogbook();
+            saveAutoslot();
+
+            if (showBrief && f !== "home" && f !== "report") {
+                if (f === "respond") armRespondAutoStart();
+                openBrief();
+            }
+
+            const bgPulse = document.getElementById('respondBg');
+            if (bgPulse) {
+                if (f === 'respond') {
+                    bgPulse.style.display = 'block';
+                } else {
+                    bgPulse.style.display = 'none';
+                }
+            }
+
+            if (f === "respond" && !showBrief) startRespondTimerAuto();
+        }
+
+        /* =========================
+           Hotspots
+           ========================= */
+        let hotspots = [];
+        const addHotspot = (obj) => hotspots.push(obj);
+
+        function setHotspots() {
+            hotspots = [];
+
+            if (state.floor === "home") {
+                startMusic();
+                addHotspot({ id: "start", label: "START", x: 415, y: 200, w: 130, h: 50, click: () => openGuideStart() });
+                addHotspot({ id: "help", label: "GUIDE", x: 415, y: 270, w: 130, h: 50, click: () => openGuideGuide() });
+                addHotspot({ id: "best", label: "BEST RUN", x: 415, y: 340, w: 130, h: 50, click: () => openBestInfo() });
+                addHotspot({ id: "settings", label: "SETTINGS", x: 415, y: 410, w: 130, h: 50, click: () => openSettings() });
+                return;
+            }
+
+            const finishStyle = {};
+            const finishX = 530, finishY = 490, finishW = 180, finishH = 35;
+
+            if (state.floor === "identify") {
+                ["crm", "hr", "web", "files", "prod"].forEach((id) => {
+                    const map = { crm: [70, 100], hr: [203, 225], web: [335, 100], files: [70, 350], prod: [335, 350] };
+                    const [x, y] = map[id];
+                    addHotspot({ id: "asset_" + id, label: id.toUpperCase(), x, y, w: 90, h: 60, click: () => openTag(id) });
+                });
+                addHotspot({ id: "finish", label: "Finish Level: Identify", x: finishX, y: finishY, w: finishW, h: finishH, click: () => finishIdentify(), subtle: true });
+                return;
+            }
+
+            if (state.floor === "protect") {
+                ["crm", "hr", "web", "files", "prod"].forEach((id) => {
+                    const map = { crm: [70, 100], hr: [203, 225], web: [335, 100], files: [70, 350], prod: [335, 350] };
+                    const [x, y] = map[id];
+                    addHotspot({ id: "asset_" + id, label: id.toUpperCase(), x, y, w: 90, h: 60, click: () => applyControl(id) });
+                });
+
+                const panelY = { mfa: 240, patch: 290, fw: 340, enc: 390 };
+                MODULES.forEach(m => {
+                    addHotspot({
+                        id: "mod_" + m.id, label: m.label,
+                        x: 490, y: panelY[m.id], w: 180, h: 40,
+                        click: () => selectTool(m.id),
+                        tooltip: { title: m.label, body: m.tip }
+                    });
+                });
+
+                addHotspot({ id: "finish", label: "Finish Level: Protect", x: finishX, y: finishY, w: finishW, h: finishH, click: () => finishProtect(), subtle: true });
+                return;
+            }
+
+            if (state.floor === "detect") {
+                addHotspot({ id: "soc", label: " ", x: 112, y: 210, w: 270, h: 140, fill: "rgba(255,0,255,4)", click: () => openDetectClassifier() });
+                addHotspot({ id: "finish", label: "Finish Level: Detect", x: finishX, y: finishY, w: finishW, h: finishH, click: () => finishDetect(), subtle: true });
+                return;
+            }
+
+            if (state.floor === "respond") {
+                addHotspot({ id: "room_soc", label: "SOC", x: 70, y: 170, w: 160, h: 100, click: () => openRespondAction("soc") });
+                addHotspot({ id: "room_srv", label: "Servers", x: 270, y: 170, w: 160, h: 100, click: () => openRespondAction("srv") });
+                addHotspot({ id: "room_office", label: "Office", x: 70, y: 300, w: 160, h: 100, click: () => openRespondAction("office") });
+                addHotspot({ id: "room_net", label: "Network", x: 270, y: 300, w: 160, h: 100, click: () => openRespondAction("net") });
+                addHotspot({ id: "finish", label: "Finish Level: Respond", x: finishX, y: finishY, w: finishW, h: finishH, click: () => finishRespond(), subtle: true });
+                return;
+            }
+
+            if (state.floor === "recover") {
+                ["crm", "hr", "web", "files", "prod"].forEach((id) => {
+                    const map = { crm: [70, 100], hr: [203, 225], web: [335, 100], files: [70, 350], prod: [335, 350] };
+                    const [x, y] = map[id];
+                    addHotspot({ id: "asset_" + id, label: id.toUpperCase(), x, y, w: 90, h: 60, click: () => openRestore(id) });
+                });
+
+                addHotspot({ id: "finish", label: "Finish Level: Recover", x: finishX, y: finishY, w: finishW, h: finishH, click: () => finishRecover(), subtle: true });
+                return;
+            }
+
+            if (state.floor === "report") {
+                addHotspot({ id: "details", label: "DETAILS", x: 630, y: 430, w: 160, h: 60, click: () => openReportDetails() });
+                addHotspot({ id: "home", label: "HOME", x: 160, y: 430, w: 160, h: 60, click: () => resetRunToHome(false) });
+            }
+        }
+
+        /* =========================
+           Tooltip
+           ========================= */
+        function showTooltip(title, body, clientX, clientY) {
+            ui.ttTitle.textContent = title;
+            ui.ttBody.textContent = body;
+            ui.tooltip.style.display = "block";
+            const pad = 12;
+            let x = clientX + pad;
+            let y = clientY + pad;
+            const rect = ui.tooltip.getBoundingClientRect();
+            if (x + rect.width > window.innerWidth - 8) x = clientX - rect.width - pad;
+            if (y + rect.height > window.innerHeight - 8) y = clientY - rect.height - pad;
+            ui.tooltip.style.left = x + "px";
+            ui.tooltip.style.top = y + "px";
+        }
+        function hideTooltip() { ui.tooltip.style.display = "none"; }
+
+        /* =========================
+           Identify
+           ========================= */
+        function openTag(assetId) {
+            const a = state.assets.find(x => x.id === assetId);
+            if (!a) return;
+
+            openModal("Identify — Tag asset", `
+    <div class="note"><b>${escapeHtml(a.name)}</b> — ${escapeHtml(a.desc)}</div>
+    <div class="sep"></div>
+    <div class="grid2">
+      <div class="card">
+        <label>Data type</label>
+        <select id="tagData">
+          <option value="">— choose —</option>
+          <option value="public">public (public data)</option>
+          <option value="private">private (internal/sensitive data)</option>
+        </select>
+      </div>
+      <div class="card">
+        <label>Criticality</label>
+        <select id="tagCrit">
+          <option value="">— choose —</option>
+          <option value="critical">critical (if it stops → business blocked)</option>
+          <option value="noncritical">non-critical (inconvenient, not a total stop)</option>
+        </select>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="row spread">
+      <div class="note">Goal: know what to protect and in what order.</div>
+      <button class="primary" id="saveTag">Save</button>
+    </div>
+  `);
+
+            $("#saveTag").onclick = () => {
+                const dt = $("#tagData").value;
+                const cr = $("#tagCrit").value;
+                if (!dt || !cr) { toastHint("Complete both choices."); return; }
+                a.dataType = dt;
+                a.critical = (cr === "critical");
+                a.tagged = true;
+                addLog("Identify", `Tag: ${a.name} = ${dt}, ${a.critical ? "critical" : "non-critical"}.`);
+                setAction();
+                saveAutoslot();
+                closeModal(); onModalClosed();
+            };
+        }
+
+        function evaluateIdentify() {
+            const expected = {
+                crm: { dataType: 'private', critical: true },
+                hr: { dataType: 'private', critical: true },
+                web: { dataType: 'public', critical: false },
+                files: { dataType: 'private', critical: false },
+                prod: { dataType: 'private', critical: true },
+            };
+            const mistakes = [];
+            state.assets.forEach(a => {
+                const exp = expected[a.id];
+                if (!a.tagged) {
+                    mistakes.push(`You forgot to map the ${a.name}.`);
+                    return;
+                }
+                if (exp && a.dataType !== exp.dataType) {
+                    mistakes.push(`You marked ${a.name} as ${a.dataType} data, but it actually handles ${exp.dataType} data.`);
+                }
+                if (exp && a.critical !== exp.critical) {
+                    mistakes.push(`You thought ${a.name} was ${a.critical ? 'critical' : 'non-critical'}, but it is really ${exp.critical ? 'critical' : 'non-critical'} for the business.`);
+                }
+            });
+
+            state.levelSummary.identify = {
+                tagged: state.assets.filter(a => a.tagged).length,
+                total: state.assets.length,
+                mistakes,
+                scores: snapshotScores()
+            };
+        }
+
+        function finishIdentify() {
+            if (!state.assets.every(a => a.tagged)) {
+                toastHint('Tag all assets first.');
+                return;
+            }
+            evaluateIdentify();
+            const sum = state.levelSummary.identify;
+            const mistakesCount = sum.mistakes.length;
+            let newBudget = 6;
+            if (mistakesCount === 0) {
+                newBudget = 7;
+                applyScoreDelta({ sec: 5 }, "Perfect risk analysis");
+            } else {
+                newBudget = Math.max(3, 6 - mistakesCount);
+                applyScoreDelta({ sec: -2 }, "Errors in risk analysis");
+            }
+            state.protectBudget = newBudget;
+
+            const left = `
+        <div class="note"><b>Your Mapping Results</b></div>
+        <div class="sep"></div>
+        <div class="note">You successfully mapped <span class="mono">${sum.tagged}/${sum.total}</span> assets.</div>
+        <div class="sep"></div>
+        <div class="note"><b>Feedback on your choices:</b></div>
+        <div class="sep"></div>
+        ${sum.mistakes.length ?
+                    sum.mistakes.slice(0, 8).map(m => `<div class="note" style="margin-bottom: 4px;">• ${escapeHtml(m)}</div>`).join('')
+                    : `<div class="note" style="color:var(--ok)">Flawless analysis! You understood the infrastructure perfectly.</div>`}
+        <div class="sep"></div>
+        <div class="note" style="color:var(--accent)"><b>Security Budget Earned: ${newBudget} controls.</b></div>
+    `;
+
+            const right = `
+        <div class="note"><b>Why it matters</b></div>
+        <div class="sep"></div>
+        <div class="note">Knowing your network is the first rule of cybersecurity. A precise map gives you a better budget for protections.</div>
+        <div class="sep"></div>
+        <div class="note">Let's move to the Protect phase to set up the defenses!</div>
+    `;
+
+            openFinishLevelModal('Identify', left, right, () => {
+                addLog('Protect', `Starting Protect with ${newBudget} available controls.`);
+                setFloor('protect', true);
+            });
+        }
+
+
+        /* =========================
+           Protect
+           ========================= */
+        function selectTool(modId) { state.selectedTool = modId; setAction(); toastHint("Selected: " + modId + ". Now click an asset."); }
+
+        function applyControl(assetId) {
+            if (!state.selectedTool) { toastHint("Select a control from the right panel first."); return; }
+            const a = state.assets.find(x => x.id === assetId);
+            const m = MODULES.find(x => x.id === state.selectedTool);
+            if (!a || !m) return;
+
+            const used = state.assets.reduce((acc, x) => acc + x.controls.length, 0);
+            if (used >= state.protectBudget) {
+                setBanner("Budget exhausted! Finish the level.", "rgba(255,176,32,.38)", 2500);
+                toastHint("Budget exhausted. Click 'Finish Level: Protect' at the bottom right.");
+                // Deseleziona il tool perché tanto non può usarlo
+                state.selectedTool = null;
+                return;
+            }
+            if (a.controls.includes(m.id)) { toastHint("Already installed on this asset."); return; }
+
+            const isNonCritical = (a.critical === false);
+
+            // Controlla quanti asset CRITICI non hanno ancora nessun controllo installato
+            const unprotectedCriticals = state.assets.filter(x => x.critical === true && x.controls.length === 0).length;
+
+            let finalProdCost = m.prod; // Costo base del modulo (es: -6 per MFA)
+
+            if (isNonCritical) {
+                // Se cerca di proteggere un non-critico mentre i critici sono scoperti
+                if (unprotectedCriticals > 0) {
+                    finalProdCost -= 10; // PENALITA' EXTRA!
+                    setBanner(`Bad priority! ${unprotectedCriticals} critical assets are still unprotected! Productivity drops!`, "rgba(255,75,110,.38)", 3000);
+                    toastHint(`You must secure all critical assets first before spending budget here.`);
+                    addLog("Protect", `⚠ Severe disruption: protected non-critical asset while criticals were exposed.`);
+                } else {
+                    // Se ha già protetto tutti i critici, lo premiamo non dandogli penalità extra
+                    setBanner("Non-critical asset protected. Good job prioritizing criticals first!", "rgba(51,209,122,.35)", 2400);
+                    addLog("Protect", `Secured non-critical ${a.name} (Criticals were already safe).`);
+                }
+            } else {
+                const remaining = state.protectBudget - (used + 1);
+                setBanner(
+                    `Critical asset protected! Budget remaining: ${remaining}/${state.protectBudget}`,
+                    'rgba(53,208,255,.35)', 1800
+                );
+                addLog('Protect', `Installed ${m.short} on ${a.name}.`);
+            }
+
+            // Applichiamo la modifica all'asset
+            a.controls.push(m.id);
+
+            // Calcolo punteggi diretto (senza diminishing matematico complesso)
+            // Se è non-critico dà meno security gain.
+            const secGain = isNonCritical ? Math.max(0, m.sec - 6) : m.sec;
+            const spreadCut = isNonCritical ? 0 : 3;
+
+            applyScoreDelta({
+                sec: secGain,
+                prod: finalProdCost,
+                spread: -spreadCut
+            }, `Protect ${m.id} on ${a.id}`);
+
+            state.selectedTool = null;
+
+            setAction();
+            saveAutoslot();
+        }
+
+
+        function finishProtect() {
+            const installed = state.assets.reduce((acc, a) => acc + a.controls.length, 0);
+            const nonCriticalInstalls = state.assets.filter(a => a.critical === false).reduce((acc, a) => acc + a.controls.length, 0);
+            const criticalInstalls = state.assets.filter(a => a.critical === true).reduce((acc, a) => acc + a.controls.length, 0);
+
+            state.levelSummary.protect = { installed, criticalInstalls, nonCriticalInstalls, scores: snapshotScores() };
+            const s = state.levelSummary.protect;
+
+            const left = `
+        <div class="note"><b>Your Defenses</b></div>
+        <div class="sep"></div>
+        <div class="note">You deployed <span class="mono">${s.installed}/${state.protectBudget}</span> available security controls.</div>
+        <div class="note">You secured <b>${s.criticalInstalls}</b> critical systems and <b>${s.nonCriticalInstalls}</b> non-critical ones.</div>
+        <div class="sep"></div>
+        <div class="note" style="color:var(--warn)">${s.nonCriticalInstalls > 0 ? 'You spent some budget on non-critical systems. It is usually better to protect the vital ones first!' : '<span style="color:var(--ok)">Great job focusing your budget on the most critical assets!</span>'}</div>
+    `;
+
+            const right = `
+        <div class="note"><b>What happens next?</b></div>
+        <div class="sep"></div>
+        <div class="note">These protections make it harder for attackers to break in. Keep in mind that too much security can slow down your employees' daily work.</div>
+        <div class="sep"></div>
+        <div class="note">Now, head to the SOC room. It's time to monitor the network in the Detect phase!</div>
+    `;
+
+            openFinishLevelModal('Protect', left, right, () => {
+                addLog('Detect', 'Moving to the SOC to distinguish real signals from noise.');
+                setFloor('detect', true);
+            });
+        }
+
+
+        /* =========================
+           Detect
+           ========================= */
+        function openDetectClassifier() {
+            const rows = DETECT_LOGS.map(l => {
+                const cur = state.detect.classified[l.id] || "";
+                return `
+      <div class="card" style="margin-bottom:8px">
+        <div class="note"><span class="mono">${escapeHtml(l.text)}</span></div>
+        <div class="sep"></div>
+        <div class="row spread">
+          <div class="note">Your choice: <span class="mono">${cur || "—"}</span></div>
+          <div class="row">
+            <button data-log="${l.id}" data-v="benign">Benign</button>
+            <button class="danger" data-log="${l.id}" data-v="suspicious">Suspicious</button>
+          </div>
+        </div>
+        <div class="sep"></div>
+        <div class="note">Hint: ${escapeHtml(l.why)}</div>
+      </div>
+    `;
+            }).join("");
+
+            openModal("Detect — Classify logs (SOC)", `
+    <div class="note">Classify each log as <span class="mono">Benign</span> or <span class="mono">Suspicious</span>, then confirm.</div>
+    <div class="sep"></div>
+    
+    <div id="detectListContainer" style="max-height: 55vh; overflow-y: auto; padding-right: 5px;">
+        ${rows}
+    </div>
+
+    <div class="sep"></div>
+    <div class="row spread">
+      <div class="note">Completion: <span class="mono" id="detProgress">—</span></div>
+      <button class="primary" id="detConfirm">Confirm analysis</button>
+    </div>
+`);
+
+            const updateProgress = () => {
+                const done = Object.keys(state.detect.classified).length;
+                $("#detProgress").textContent = `${done}/${DETECT_LOGS.length}`;
+            };
+            updateProgress();
+
+            ui.modalBody.querySelectorAll("button[data-log]").forEach(btn => {
+                btn.onclick = () => {
+                    const container = document.getElementById("detectListContainer");
+                    const top = container ? container.scrollTop : 0;
+
+                    const id = btn.dataset.log;
+                    const v = btn.dataset.v;
+                    state.detect.classified[id] = v;
+
+                    addLog("Detect", `Classified ${id} as ${v}.`);
+                    setAction(); saveAutoslot();
+
+                    closeModal();
+                    openDetectClassifier();
+
+                    requestAnimationFrame(() => {
+                        const c2 = document.getElementById("detectListContainer");
+                        if (c2) c2.scrollTop = top;
+                    });
+                };
+            });
+
+            $("#detConfirm").onclick = () => {
+                const done = Object.keys(state.detect.classified).length;
+                if (done < DETECT_LOGS.length) { toastHint("Classify all logs before confirming."); return; }
+
+                let tp = 0, tn = 0, fp = 0, fn = 0;
+                DETECT_LOGS.forEach(l => {
+                    const guess = state.detect.classified[l.id];
+                    const truth = l.truth;
+                    if (guess === "suspicious" && truth === "suspicious") tp++;
+                    if (guess === "benign" && truth === "benign") tn++;
+                    if (guess === "suspicious" && truth === "benign") fp++;
+                    if (guess === "benign" && truth === "suspicious") fn++;
+                });
+
+                const quality = tp + tn - fp - (fn * 2);
+                state.detect.suspiciousScore = clamp(50 + quality * 8, 0, 100);
+                state.detect.done = true;
+                state.detect.results = { tp, tn, fp, fn };
+                state.detect.fnCount = fn;
+
+                applyScoreDelta({
+                    spread: (fn * 9) - (tp * 2),
+                    prod: -(fp * 2),
+                    sec: (tp * 2) - (fn * 3)
+                }, "Detect confirm");
+
+                addLog("Detect", `Analysis: TP=${tp}, TN=${tn}, FP=${fp}, FN=${fn}.`);
+                setAction(); saveAutoslot();
+                closeModal(); onModalClosed();
+            };
+        }
+
+        function finishDetect() {
+            if (!state.detect.done) {
+                toastHint('Complete Detect first: SOC Console -> Confirm analysis.');
+                return;
+            }
+            const r = state.detect.results || { tp: 0, tn: 0, fp: 0, fn: 0 };
+            state.levelSummary.detect = { ...r, scores: snapshotScores() };
+
+            const left = `
+        <div class="note"><b>Your SOC Performance</b></div>
+        <div class="sep"></div>
+        <div class="note" style="color:var(--ok)"><b>Good Catch:</b></div>
+        <div class="note">• Blocked <b>${r.tp}</b> actual threats.</div>
+        <div class="note">• Ignored <b>${r.tn}</b> normal network events.</div>
+        <div class="sep"></div>
+        <div class="note" style="color:var(--danger)"><b>Mistakes:</b></div>
+        <div class="note">• Raised <b>${r.fp}</b> false alarms (frustrates employees).</div>
+        <div class="note">• Missed <b>${r.fn}</b> real attacks (lets the virus spread).</div>
+    `;
+
+            const right = `
+        <div class="note"><b>The Consequences</b></div>
+        <div class="sep"></div>
+        <div class="note">Every false alarm reduces productivity, while missed threats allow attackers to dig deeper into the network.</div>
+        <div class="note" style="margin-top: 6px;">${r.fn > 0 ? '<span style="color:var(--danger)">Because you missed some threats, the attacker is already inside the network!</span>' : '<span style="color:var(--ok)">You caught all threats, but a minor breach still occurred.</span>'}</div>
+        <div class="sep"></div>
+        <div class="note" style="color:var(--warn)"><b>An incident has been confirmed. Get ready for the Respond phase!</b></div>
+    `;
+
+            openFinishLevelModal('Detect', left, right, () => {
+                addLog('Respond', 'Now you must contain the incident under pressure.');
+                setFloor('respond', true);
+            });
+        }
+
+
+        /* =========================
+           Respond (auto)
+           ========================= */
+        let respondInterval = null;
+
+        function startRespondTimerAuto() {
+            if (state.respond.running) return;
+
+            state.respond.running = true;
+            state.respond.tick = 0;
+
+            state.respond.isolateUsed = false;
+            state.respond.isolateTarget = 'srv';
+            state.respond.isolateEffect = 1.0;
+            state.respond.lastMoleAt = 0;
+
+            state.respond.rooms.forEach(r => {
+                r.contained = false;
+                r.compromised = true;
+                r.cleanUntilTick = 0;
+            });
+
+            addLog("Respond", "Containment started: spread grows automatically (urgency).");
+            setBanner("Respond started: urgency active", "rgba(255,75,110,.25)", 1700);
+
+            respondInterval = setInterval(() => {
+                state.respond.tick++;
+                state.respond.timer = Math.max(0, state.respond.timer - 1);
+
+                const base = 1.25;
+                const secMit = (state.security / 100) * 0.85;
+                const prodPenalty = (1 - state.productivity / 100) * 0.35;
+                const fnBoost = (state.detect?.fnCount || 0) * 0.08;
+
+                const growth = clamp(base - secMit + prodPenalty + fnBoost, 0.25, 1.55);
+                applyScoreDelta({ spread: growth }, "Respond tick");
+
+                if (state.respond.timer > 2) {
+                    const candidates = state.respond.rooms.filter(rr =>
+                        !rr.contained &&
+                        !rr.compromised &&
+                        state.respond.tick >= (rr.cleanUntilTick || 0)
+                    );
+
+                    const p = clamp(0.22 + (state.spread / 100) * 0.25, 0.18, 0.55) * (state.respond.isolateEffect || 1.0);
+
+                    if (candidates.length && (state.respond.tick !== state.respond.lastMoleAt) && Math.random() < p) {
+                        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+                        pick.compromised = true;
+                        state.respond.lastMoleAt = state.respond.tick;
+                        addLog('Respond', `Reinfection: ${pick.name}.`);
+                        setBanner('Reinfection detected!', 'rgba(255,75,110,.30)', 900);
+                    }
+                }
+
+                if (state.respond.timer <= 0 || state.spread >= 100) {
+                    stopRespondTimer();
+
+                    const infectedCount = state.respond.rooms.filter(r => r.compromised).length;
+
+                    if (state.spread >= 100) {
+                        addLog("Respond", "Spread at 100%! The attack overwhelmed the company.");
+                        setBanner("Infection out of control!", "rgba(255,75,110,.35)", 3000);
+
+                    } else if (infectedCount === 0) {
+                        addLog("Respond", "Great job! No infected rooms when the timer expired.");
+                        setBanner("Perfect defense! Threat contained.", "rgba(51,209,122,.35)", 3000);
+                        applyScoreDelta({ spread: -15, security: 10 }, "Perfect Respond defense");
+
+                    } else {
+                        addLog("Respond", `Time expired. ${infectedCount} rooms remained exposed.`);
+                        setBanner(`Time expired: ${infectedCount} rooms still infected.`, "rgba(255,176,32,.35)", 3000);
+                        applyScoreDelta({ spread: infectedCount * 5 }, "End-timer penalty");
+                    }
+
+                    compromiseAssetsFromSpread(false);
+
+                    renderHud();
+                    saveAutoslot();
+
+                    toastHint("Emergency phase over. Click 'Finish Level: Respond'.");
+                }
+
+                renderHud();
+                saveAutoslot();
+            }, 1000);
+
+            setAction();
+        }
+
+        function stopRespondTimer() {
+            if (respondInterval) clearInterval(respondInterval);
+            respondInterval = null;
+            state.respond.running = false;
+            setAction();
+        }
+
+        function compromiseRoom(id) {
+            const r = state.respond.rooms.find(x => x.id === id);
+            if (!r || r.compromised) return;
+            r.compromised = true;
+            addLog("Respond", `New area compromised: ${r.name}.`);
+            setBanner("New area compromised", "rgba(255,176,32,.30)", 1600);
+        }
+
+        function openRespondAction(roomId) {
+            const r = state.respond.rooms.find(x => x.id === roomId);
+            if (!r) return;
+
+            const statusHtml = r.contained
+                ? '<b style="color:var(--ok)">ISOLATED (SAFE)</b>'
+                : (r.compromised
+                    ? '<b style="color:var(--danger)">COMPROMISED</b>'
+                    : '<b style="color:var(--text)">OPERATIONAL (CLEAN)</b>');
+
+            let isolateButtonHtml = '';
+            if (state.respond.isolateUsed) {
+                isolateButtonHtml = `<button class="danger" disabled style="opacity: 0.3; cursor: not-allowed; filter: grayscale(100%);">Isolate (Exhausted)</button>`;
+            } else if (r.contained) {
+                isolateButtonHtml = `<button class="danger" disabled style="opacity: 0.3; cursor: not-allowed;">Already Isolated</button>`;
+            } else {
+                isolateButtonHtml = `<button class="danger" id="btnRIsolate">Isolate (1 Use)</button>`;
+            }
+
+            let mitigateButtonHtml = '';
+            if (r.contained) {
+                mitigateButtonHtml = `<button disabled style="opacity: 0.3; cursor: not-allowed;">Mitigate</button>`;
+            } else {
+                mitigateButtonHtml = `<button class="warn" id="btnRMitigate">Mitigate</button>`;
+            }
+
+            const bodyHtml = `
+        <div class="note">Status: ${statusHtml}</div>
+        <div class="sep"></div>
+        <div class="row spread">
+            ${isolateButtonHtml}
+            ${mitigateButtonHtml}
+        </div>
+        ${state.respond.isolateUsed && !r.contained
+                    ? `<div class="note" style="margin-top:12px; color:var(--warn); font-size: 11px;">Isolate exhausted. Use Mitigate to temporarily contain the infection!</div>`
+                    : ''}
+    `;
+
+            openModal(`Action on ${r.name}`, bodyHtml);
+
+            const btnIso = document.getElementById('btnRIsolate');
+            const btnMit = document.getElementById('btnRMitigate');
+
+            if (btnIso) {
+                btnIso.onclick = () => doRespond(roomId, 'isolate');
+            }
+            if (btnMit) {
+                btnMit.onclick = () => doRespond(roomId, 'mitigate');
+            }
+        }
+
+        function doRespond(roomId, action) {
+            const r = state.respond.rooms.find(x => x.id === roomId);
+            if (!r || r.contained) return;
+
+            if (action === 'isolate') {
+                if (state.respond.isolateUsed) {
+                    toastHint("Isolate exhausted. Use Mitigate!");
+                    return;
+                }
+                state.respond.isolateUsed = true;
+
+                const correct = (roomId === state.respond.isolateTarget);
+
+                const isolateCosts = {
+                    srv: 8,
+                    soc: 12,
+                    office: 22,
+                    net: 30
+                };
+                const cost = isolateCosts[roomId];
+
+                if (correct) {
+                    setBanner("Great choice: isolating the Servers protects sensitive data.");
+                    r.contained = true;
+                    r.compromised = false;
+                    state.respond.isolateEffect = 0.70;
+
+                    state.productivity = clamp(state.productivity - cost, 0, 100);
+                    state.spread = clamp(state.spread - 15, 0, 100);
+                } else {
+                    setBanner(`Strategic error! Isolating ${r.name} blocks work but leaves servers exposed! Productivity drops and Spread increases!`);
+                    r.contained = true;
+                    r.compromised = false;
+                    state.respond.isolateEffect = 1.15;
+
+                    state.productivity = clamp(state.productivity - cost, 0, 100);
+                    state.spread = clamp(state.spread + 10, 0, 100);
+                }
+            }
+
+            if (action === 'mitigate') {
+                r.compromised = false;
+
+                const baseClean = 6;
+                const pressure = Math.min(3, Math.floor(state.spread / 35));
+                const cleanFor = Math.max(3, baseClean - pressure);
+                r.cleanUntilTick = state.respond.tick + cleanFor;
+
+                state.productivity = clamp(state.productivity - 0, 0, 100);
+                state.spread = clamp(state.spread - 2, 0, 100);
+
+                setBanner("Mitigate applied (temporary).", 'rgba(255,176,32,.22)', 1200);
+            }
+
+            state.respond.actions.push({ roomId, action, at: Date.now() });
+            addLog('Respond', `${action.toUpperCase()} on ${r.name}.`);
+            setAction();
+            saveAutoslot();
+            closeModal();
+            onModalClosed();
+        }
+
+        function compromiseAssetsFromSpread(reduce) {
+            const spread = state.spread;
+            const baseChance = clamp(0.15 + (spread / 100) * 0.65, 0, 0.85);
+            state.assets.forEach(a => {
+                const crit = (a.critical === true) ? 0.15 : 0;
+                const chance = reduce ? baseChance * 0.45 : baseChance;
+                if (Math.random() < (chance + crit)) a.compromised = true;
+            });
+            state.security = clamp(state.security - clamp(spread / 15, 0, 12), 0, 100);
+        }
+
+        function finishRespond() {
+            if (state.respond.running) stopRespondTimer();
+
+            const actions = state.respond.actions.length;
+            const totalIsolated = state.respond.rooms.filter(r => r.contained).length;
+            const stillInfected = state.respond.rooms.filter(r => r.compromised).length;
+
+            state.levelSummary.respond = { actions, contained: totalIsolated, compromised: stillInfected, scores: snapshotScores() };
+
+            // Controlliamo come è stato usato l'Isolate
+            const isolateAction = state.respond.actions.find(a => a.action === 'isolate');
+            let isolateFeedback = "";
+
+            if (isolateAction) {
+                const correctTarget = state.respond.isolateTarget;
+                // Recuperiamo i nomi discorsivi delle stanze
+                const targetRoomName = state.respond.rooms.find(r => r.id === correctTarget)?.name || correctTarget;
+                const isolatedRoomName = state.respond.rooms.find(r => r.id === isolateAction.roomId)?.name || isolateAction.roomId;
+
+                if (isolateAction.roomId === correctTarget) {
+                    isolateFeedback = `<div class="note" style="color:var(--ok); margin-top: 8px;"><b>• Great call!</b> You correctly isolated the ${isolatedRoomName}, stopping the breach at its source.</div>`;
+                } else {
+                    isolateFeedback = `<div class="note" style="color:var(--danger); margin-top: 8px;"><b>• Wrong target!</b> You isolated the ${isolatedRoomName} instead of the ${targetRoomName}. You locked out employees and caused severe disruption, but the main threat kept spreading!</div>`;
+                }
+            } else {
+                isolateFeedback = `<div class="note" style="color:var(--warn); margin-top: 8px;"><b>• Missed opportunity:</b> You didn't use your single Isolate action. Isolating the main infected room could have stopped the spread instantly.</div>`;
+            }
+
+            const left = `
+        <div class="note"><b>Crisis Management</b></div>
+        <div class="sep"></div>
+        <div class="note">You took <b>${actions}</b> emergency actions to fight the infection.</div>
+        <div class="note">Rooms fully isolated & safe: <b>${totalIsolated}</b></div>
+        <div class="note">Rooms still infected: <b>${stillInfected}</b></div>
+        ${isolateFeedback}
+    `;
+
+            const right = `
+        <div class="note"><b>The Aftermath</b></div>
+        <div class="sep"></div>
+        <div class="note">In a real crisis, precision is everything. Isolating the wrong network segment means the malware keeps spreading while employees are locked out of their work.</div>
+        <div class="sep"></div>
+        <div class="note">The immediate attack is finally over. Now, let's Recover the systems and bring the company back to normal!</div>
+    `;
+
+            openFinishLevelModal('Respond', left, right, () => {
+                addLog('Recover', 'Now restore and reinforce after the incident.');
+                setFloor('recover', true);
+            });
+        }
+
+
+
+        /* =========================
+           Recover + report
+           ========================= */
+        function openRestore(assetId) {
+            const a = state.assets.find(x => x.id === assetId);
+            if (!a) return;
+
+            const cur = state.recover.restoreChoices[assetId];
+            if (cur) {
+                toastHint(`You already chose ${cur} for ${a.name}.`);
+                return;
+            }
+
+            const isCrit = a.critical ? 'CRITICAL' : 'NON-CRITICAL';
+            const warningText = a.critical
+                ? "Tip: For Critical assets use Clean to avoid reinfections."
+                : "Tip: For Non-Critical assets use Latest to restart quickly.";
+
+            openModal(`Recover: ${a.name} (${isCrit})`, `
+        <div class="note">${escapeHtml(a.desc)}</div>
+        <div class="sep"></div>
+    
+        <div class="grid2">
+            <div class="card">
+                <div class="note"><b>Latest</b> (Fast)</div>
+                <div class="sep"></div>
+                <button class="primary" id="rLatest">Choose Latest</button>
+            </div>
+            <div class="card">
+                <div class="note"><b>Clean</b> (Safe)</div>
+                <div class="sep"></div>
+                <button class="primary" id="rClean">Choose Clean</button>
+            </div>
+        </div>
+    `);
+
+            const btnLatest = document.getElementById('rLatest');
+            const btnClean = document.getElementById('rClean');
+
+            btnLatest.onclick = () => {
+                state.recover.restoreChoices[assetId] = 'latest';
+                if (a.critical) {
+                    applyScoreDelta({ sec: -8, spread: 12 }, 'Recover: Latest on Critical');
+                } else {
+                    applyScoreDelta({ sec: 4 }, 'Recover: Latest on Non-Critical');
+                }
+                addLog('Recover', `${a.name} restored with Latest.`);
+                setAction(); saveAutoslot(); closeModal(); onModalClosed();
+            };
+
+            btnClean.onclick = () => {
+                state.recover.restoreChoices[assetId] = 'clean';
+                if (a.critical) {
+                    applyScoreDelta({ sec: 10 }, 'Recover: Clean on Critical');
+                } else {
+                    applyScoreDelta({ prod: -8 }, 'Recover: Clean on Non-Critical (Slow)');
+                }
+                addLog('Recover', `${a.name} restored with Clean.`);
+                setAction(); saveAutoslot(); closeModal(); onModalClosed();
+            };
+        }
+
+
+        function toggleImprovement(key) {
+            state.recover.improvements[key] = !state.recover.improvements[key];
+            const label = key === "segmentation" ? "Network segmentation" : "Stronger controls baseline";
+            addLog("Recover", `${label}: ${state.recover.improvements[key] ? "ON" : "OFF"}.`);
+            setAction();
+            const pv = previewFinalReport();
+            applyScoreDelta({
+                sec: pv.sec - state.security,
+                prod: pv.prod - state.productivity,
+                spread: pv.spr - state.spread
+            }, "Recover improvement");
+            saveAutoslot();
+        }
+
+        function previewFinalReport() {
+            let sec = state.security;
+            let prod = state.productivity;
+            let spr = state.spread;
+
+            let dataLoss = 0;
+            let reinfection = 0;
+
+            state.assets.forEach(a => {
+                const choice = state.recover.restoreChoices[a.id];
+                if (a.compromised && choice) {
+                    if (choice === "latest") { dataLoss += (a.critical ? 6 : 3); reinfection += (a.critical ? 10 : 6); }
+                    else { dataLoss += (a.critical ? 12 : 6); reinfection += (a.critical ? 3 : 2); }
+                }
+            });
+
+            const b = state.respond?.backups || 0;
+            dataLoss = Math.max(0, dataLoss - b * 8);
+            reinfection = Math.max(0, reinfection - b * 2);
+
+            if (state.recover.improvements.segmentation) {
+                spr = clamp(spr - 10, 0, 100);
+                sec = clamp(sec + 4, 0, 100);
+            }
+            if (state.recover.improvements.strongerControls) {
+                sec = clamp(sec + 8, 0, 100);
+                prod = clamp(prod - 2, 0, 100);
+            }
+
+            prod = clamp(prod - (dataLoss * 0.15), 0, 100);
+            sec = clamp(sec - (reinfection * 0.10), 0, 100);
+
+            return { sec, prod, spr, dataLoss: Math.round(dataLoss), reinfection: Math.round(reinfection) };
+        }
+
+
+        function computeFinalReport() {
+            let sec = Math.round(state.security);
+            let prod = Math.round(state.productivity);
+            let spr = Math.round(state.spread);
+
+            const secGrade = sec >= 80 ? 'Excellent' : (sec >= 60 ? 'Good' : 'Critical');
+            const prodGrade = prod >= 70 ? 'Excellent' : (prod >= 50 ? 'Good' : 'Critical');
+            const sprGrade = spr <= 25 ? 'Excellent' : (spr <= 45 ? 'Good' : 'Critical');
+
+            const overall = Math.round(clamp((0.45 * sec) + (0.25 * prod) + (0.30 * (100 - spr)), 0, 100));
+
+            const advice = [];
+            if (prod <= 40) advice.push("Productivity very low: in Respond you isolated too much or used Clean on non-critical assets.");
+            if (sec <= 60) advice.push("Low security: in Protect focus controls on critical assets first.");
+            if (spr >= 55) advice.push("High spread: in Recover you used Latest on infected critical servers.");
+
+            return {
+                security: sec, productivity: prod, spread: spr,
+                secGrade, prodGrade, sprGrade, overall, advice
+            };
+        }
+
+
+        function openReportDetails() {
+            const r = state.finalReport;
+            if (!r) { toastHint("No report. Finish Recover first."); return; }
+
+            openModal("Report details (explanation)", `
+    <div class="card">
+      <div class="note"><b>How the overall score is calculated</b></div>
+      <div class="sep"></div>
+      <div class="note"><span class="mono">overall = 0.45·Security + 0.25·Productivity + 0.30·(100-Spread)</span></div>
+      <div class="note">It is a synthetic index to compare different runs; the report also evaluates the 3 indicators separately.</div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="card">
+        <div class="note"><b>Security: ${r.security} (${r.secGrade})</b></div>
+        <div class="sep"></div>
+        <div class="note">Increases with effective controls in Protect and good choices in Detect.</div>
+        <div class="note">Decreases if spread grows and you lose control of the incident.</div>
+    </div>
+
+    <div class="card">
+        <div class="note"><b>Productivity: ${r.productivity} (${r.prodGrade})</b></div>
+        <div class="sep"></div>
+        <div class="note">Decreases with strict controls and isolations in Respond.</div>
+        <div class="note">Also decreases with false positives in Detect.</div>
+    </div>
+
+    <div class="card">
+        <div class="note"><b>Spread: ${r.spread} (${r.sprGrade})</b></div>
+        <div class="sep"></div>
+        <div class="note">Increases with false negatives or slow response.</div>
+        <div class="note">Decreases with timely containment and targeted Protect.</div>
+    </div>
+
+    `);
+        }
+
+
+        function finishRecover() {
+            const missing = state.assets.filter(a => !state.recover.restoreChoices[a.id]);
+            if (missing.length > 0) {
+                toastHint('Choose restore for all assets first (Latest/Clean).');
+                return;
+            }
+
+            state.finalReport = computeFinalReport();
+            setBestRunIfBetter({
+                at: Date.now(),
+                overall: state.finalReport.overall,
+                security: state.finalReport.security,
+                productivity: state.finalReport.productivity,
+                spread: state.finalReport.spread
+            });
+            saveAutoslot();
+
+            const cleanCount = Object.values(state.recover.restoreChoices).filter(v => v === 'clean').length;
+            const latestCount = Object.values(state.recover.restoreChoices).filter(v => v === 'latest').length;
+
+            const left = `
+        <div class="note"><b>Recovery Strategy</b></div>
+        <div class="sep"></div>
+        <div class="note">Clean backups used: <b>${cleanCount}</b> (Safe, but older data)</div>
+        <div class="note">Latest backups used: <b>${latestCount}</b> (Fast, but riskier)</div>
+    `;
+
+            const right = `
+        <div class="note"><b>Final steps</b></div>
+        <div class="sep"></div>
+        <div class="note">Using a 'Clean' backup for critical servers prevents the virus from waking up again. Using 'Latest' for less critical systems saves precious recovery time.</div>
+        <div class="sep"></div>
+        <div class="note" style="color:var(--ok)"><b>NovaTech Industries is back online!</b> Let's see your final score.</div>
+    `;
+
+            openFinishLevelModal('Recover', left, right, () => {
+                addLog('Report', 'Final report generated.');
+                setFloor('report', false);
+            });
+        }
+
+
+
+        /* =========================
+           Best info modal
+           ========================= */
+        function openBestInfo() {
+            const best = getBestRun();
+
+            if (!best) {
+                openModal("Best Run", `
+            <div class="note">
+                No best run saved yet.<br><br>
+                Complete a game to generate your first record.
+            </div>
+        `);
+                return;
+            }
+
+            openModal("Best Run", `
+        <div style="text-align:center; padding: 10px 0;">
+            <div class="note">Best Overall Score</div>
+            <div style="
+                font-size: 48px;
+                font-weight: 900;
+                margin-top: 8px;
+                color: var(--accent);
+            ">
+                ${best.overall}/100
+            </div>
+            <div class="note" style="margin-top:6px;">
+                ${formatDateTime(best.at)}
+            </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div style="
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+             gap: 10px;
+            ">
+            <div class="card">
+                <div class="note">Security</div>
+                <div class="mono" style="font-size:22px; font-weight:800;">
+                    ${best.security}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="note">Productivity</div>
+                <div class="mono" style="font-size:22px; font-weight:800;">
+                    ${best.productivity}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="note">Spread</div>
+                <div class="mono" style="font-size:22px; font-weight:800;">
+                    ${best.spread}
+                </div>
+            </div>
+        </div>
+    `);
+        }
+
+
+        /* =========================
+           Banner
+           ========================= */
+        function setBanner(text, color, ms) {
+            state.ui.bannerText = text;
+            state.ui.bannerColor = color;
+            state.ui.bannerUntil = Date.now() + ms;
+        }
+
+        /* =========================
+           Drawing
+           ========================= */
+        function resizeCanvas() {
+            const w = canvas.clientWidth;
+            const h = canvas.clientHeight;
+            const targetRatio = 16 / 9;
+            let cw = w, ch = h;
+            if (w / h > targetRatio) cw = Math.floor(h * targetRatio);
+            else ch = Math.floor(w / targetRatio);
+            canvas.width = cw;
+            canvas.height = ch;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        function floorPalette(floor) {
+            if (floor === "home") return { base: "#05060b", line: "rgba(255,255,255,.10)", accent: "#9b8cff", glow: "rgba(155,140,255,.12)", panel: "rgba(20,18,40,.25)" };
+            if (floor === "report") return { base: "#05070a", line: "rgba(255,255,255,.10)", accent: "#ffb020", glow: "rgba(255,176,32,.12)", panel: "rgba(18,22,40,.22)" };
+
+            if (floor === "identify") return { base: "#0b1020", line: "rgba(255,255,255,.20)", accent: "#35d0ff", glow: "rgba(53,208,255,.10)", panel: "rgba(20,32,60,.30)" };
+            if (floor === "protect") return { base: "#081326", line: "rgba(255,255,255,.20)", accent: "#35d0ff", glow: "rgba(53,208,255,.08)", panel: "rgba(20,32,60,.35)" };
+            if (floor === "detect") return { base: "#070f1f", line: "rgba(255,255,255,.18)", accent: "#35d0ff", glow: "rgba(53,208,255,.06)", panel: "rgba(10,18,38,.40)" };
+            if (floor === "respond") return { base: "#1a0b14", line: "rgba(255,255,255,.18)", accent: "#ff4b6e", glow: "rgba(255,75,110,.10)", panel: "rgba(40,12,24,.38)" };
+            if (floor === "recover") return { base: "#0b1a12", line: "rgba(255,255,255,.18)", accent: "#33d17a", glow: "rgba(51,209,122,.10)", panel: "rgba(12,40,24,.34)" };
+            return { base: "#070b16", line: "rgba(255,255,255,.18)", accent: "#35d0ff", glow: "rgba(53,208,255,.08)", panel: "rgba(18,24,46,.30)" };
+        }
+
+        function sx(x) { return x * (canvas.width / 960); }
+        function sy(y) { return y * (canvas.height / 540); }
+        function sw(w) { return w * (canvas.width / 960); }
+        function sh(h) { return h * (canvas.height / 540); }
+
+        function drawRect(x, y, w, h, fill, stroke) {
+            ctx.beginPath();
+            ctx.rect(sx(x), sy(y), sw(w), sh(h));
+            if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+            if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+        }
+
+        function drawText(text, x, y, color, size = 14, mono = false, align = "left", baseline = "alphabetic") {
+            ctx.fillStyle = color;
+            ctx.font = `${size}px ${mono ? "ui-monospace, Menlo, Consolas, monospace" : "system-ui, Segoe UI, sans-serif"}`;
+            ctx.textAlign = align;
+            ctx.textBaseline = baseline;
+            ctx.fillText(text, sx(x), sy(y));
+        }
+
+
+        function drawLevelShell(p) {
+            drawRect(20, 30, 690, 440, "rgba(255,255,255,.02)", p.line);
+            drawRect(40, 66, 420, 380, "rgba(0,0,0,.10)", p.line);
+            drawRect(470, 66, 220, 380, p.panel, p.line);
+            drawText(state.floor.toUpperCase(), 40, 53, "rgba(255,255,255,.75)", 16, true);
+        }
+
+        function drawHotspot(h, p) {
+            let over = isOver(h);
+
+            // LOGICA UX: Mantieni illuminato il tool selezionato nel livello Protect
+            if (state.floor === "protect" && state.selectedTool && h.id === "mod_" + state.selectedTool) {
+                over = true; // Forza lo stato "over" se è il tool attivo!
+            }
+
+            const stroke = h.subtle ? "rgba(255,255,255,.18)" : (over ? p.accent : "rgba(255,255,255,.16)");
+            const fill = h.subtle ? (over ? "rgba(255,255,255,.06)" : "rgba(255,255,255,.03)") : (over ? "rgba(255,255,255,.06)" : "rgba(255,255,255,.03)");
+            drawRect(h.x, h.y, h.w, h.h, fill, stroke);
+
+            const textX = h.x + h.w / 2;
+            const textY = h.y + h.h / 2;
+
+            // Testo più luminoso se il tool è selezionato/in hover
+            const textColor = over ? "rgba(255,255,255,1)" : "rgba(255,255,255,.85)";
+            drawText(h.label, textX, textY, textColor, 16, true, "center", "middle");
+        }
+
+
+        function drawBanner() {
+            if (!state.ui.bannerText) return;
+            if (Date.now() > state.ui.bannerUntil) return;
+            const x = 150, y = 15, w = 530, h = 42;
+            drawRect(x, y, w, h, state.ui.bannerColor || "rgba(53,208,255,.25)", "rgba(255,255,255,.16)");
+            drawText(state.ui.bannerText, x + 14, y + 28, "rgba(255,255,255,.92)", 14, true);
+        }
+
+        function controlsListText(asset) {
+            if (asset.controls.length === 0) return "—";
+            return asset.controls.map(id => (MODULES.find(m => m.id === id)?.short || id)).join(",");
+        }
+
+        function drawRightPanelHelp(p) {
+            let x = 480, y = 100;
+
+            const title = "YOUR OBJECTIVES";
+            let lines = [];
+
+            if (state.floor === "identify") {
+                lines = [
+                    "Map all network assets.",
+                    "Set Type and Criticality.",
+                    "Submit to get your budget."
+                ];
+            }
+            if (state.floor === "protect") {
+                lines = [
+                    "Spend your budget wisely.",
+                    "Secure critical assets first.",
+                    "Hover tools to see effects."
+                ];
+            }
+            if (state.floor === "detect") {
+                lines = [
+                    "Review the SOC logs.",
+                    "Mark Benign or Suspicious.",
+                    "Submit your analysis."
+                ];
+            }
+            if (state.floor === "respond") {
+                lines = [
+                    "Act fast, Spread is rising!",
+                    "Isolate the infected room.",
+                    "Mitigate to keep others working."
+                ];
+            }
+            if (state.floor === "recover") {
+                lines = [
+                    "Choose a backup for each.",
+                    "Clean (safe) vs Latest (fast).",
+                    "Relaunch to see your score."
+                ];
+            }
+
+            if (lines.length) {
+                drawText(title, x + 5, y, "rgba(255,255,255,.90)", 14, true);
+                lines.forEach((l, i) => drawText("• " + l, x + 5, y + 24 + i * 20, "rgba(255,255,255,.65)", 14, false));
+            }
+        }
+
+
+        function drawHomeScreen(p) {
+            if (bgHome.complete && bgHome.naturalHeight !== 0) {
+                ctx.drawImage(bgHome, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.fillStyle = 'rgba(6, 9, 19, 0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.shadowColor = "rgba(0,0,0,1)";
+            ctx.shadowBlur = 20;
+            drawText('THE REBUILDER', 480, 120, 'rgba(255,255,255,.95)', 55, true, "center");
+            drawText("Incident Response Simulator", 480, 150, "rgba(255,255,255,.70)", 20, true, "center");
+            ctx.shadowBlur = 0;
+
+            hotspots.forEach(h => {
+                drawGlassHotspot(h, p);
+            });
+        }
+
+        function drawGlassHotspot(h, p) {
+            const X = sx(h.x);
+            const Y = sy(h.y);
+            const W = sw(h.w);
+            const H = sh(h.h);
+
+            const over = isOver(h);
+
+            ctx.save();
+
+            ctx.beginPath();
+            ctx.rect(X, Y, W, H);
+
+            ctx.clip();
+
+            ctx.filter = over ? 'blur(15px)' : 'blur(5px)';
+
+            if (bgHome.complete && bgHome.naturalHeight !== 0) {
+                ctx.drawImage(bgHome, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = "#222";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.filter = 'none';
+
+            ctx.fillStyle = over ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.03)";
+            ctx.fill();
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = over ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.2)";
+            ctx.stroke();
+
+            ctx.restore();
+
+            const textX = h.x + h.w / 2;
+            const textY = h.y + h.h / 2;
+
+            ctx.shadowColor = "rgba(0,0,0,0.8)";
+            ctx.shadowBlur = 4;
+
+            drawText(h.label, textX, textY, "rgba(255,255,255,.95)", 16, true, "center", "middle");
+
+            ctx.shadowBlur = 0;
+        }
+
+        function drawReportScreen(p) {
+            const grad = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.35, 30, canvas.width * 0.5, canvas.height * 0.35, canvas.width * 0.85);
+            grad.addColorStop(0, p.glow);
+            grad.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawText("FINAL REPORT — NovaTech Industries", 345, 90, "rgba(255,255,255,.92)", 20, true);
+
+            const r = state.finalReport;
+            if (!r) {
+                drawText("No report available (finish Recover first).", 160, 145, "rgba(255,255,255,.70)", 14, true);
+                return;
+            }
+
+            drawRect(140, 110, 680, 300, "rgba(255,255,255,.02)", "rgba(255,255,255,.14)");
+            drawText(`Score: ${r.overall}/100`, 415, 170, "rgba(255,176,32,.90)", 22, true);
+
+            const boxY = 210, boxH = 155, boxW = 200;
+            drawRect(160, boxY, boxW, boxH, "rgba(255,255,255,.02)", "rgba(255,255,255,.14)");
+            drawRect(380, boxY, boxW, boxH, "rgba(255,255,255,.02)", "rgba(255,255,255,.14)");
+            drawRect(600, boxY, boxW, boxH, "rgba(255,255,255,.02)", "rgba(255,255,255,.14)");
+
+            drawText("Security", 175, boxY + 40, "rgba(53,208,255,.90)", 18, true);
+            drawText(`${r.security} (${r.secGrade})`, 175, boxY + 67, "rgba(255,255,255,.90)", 18, true);
+
+            drawText("Productivity", 395, boxY + 40, "rgba(155,140,255,.90)", 18, true);
+            drawText(`${r.productivity} (${r.prodGrade})`, 395, boxY + 67, "rgba(255,255,255,.90)", 18, true);
+
+            drawText("Spread", 615, boxY + 40, "rgba(255,75,110,.90)", 18, true);
+            drawText(`${r.spread} (${r.sprGrade})`, 615, boxY + 67, "rgba(255,255,255,.90)", 18, true);
+
+            drawText("Open DETAILS for further explanation of the score.", 345, boxY + 185, "rgba(255,255,255,.20)", 12, true);
+
+            hotspots.forEach(h => drawHotspot(h, p));
+        }
+
+        function drawLevel(p) {
+            const grad = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.35, 30, canvas.width * 0.5, canvas.height * 0.35, canvas.width * 0.7);
+            grad.addColorStop(0, p.glow);
+            grad.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawLevelShell(p);
+            drawRightPanelHelp(p);
+
+            if (state.floor === "identify") {
+                const map = { crm: [70, 100], hr: [203, 225], web: [335, 100], files: [70, 350], prod: [335, 350] };
+                state.assets.forEach(a => {
+                    const [x, y] = map[a.id];
+                    const fill = a.tagged ? "rgba(53,208,255,.10)" : "rgba(255,255,255,.03)";
+                    const stroke = a.tagged ? "rgba(53,208,255,.50)" : "rgba(255,255,255,.16)";
+                    drawRect(x, y, 90, 60, fill, stroke);
+                    drawText(a.id.toUpperCase(), x + 8, y + 20, a.tagged ? "rgba(53,208,255,.90)" : "rgba(255,255,255,.70)", 12, true);
+                    const tag = !a.tagged ? "UNIDENTIFIED" : `${a.dataType.toUpperCase()} • ${a.critical ? "CRIT" : "NON-CRIT"}`;
+                    drawText(tag, x + 8, y + 42, a.tagged ? (a.critical ? "rgba(255,176,32,.85)" : "rgba(255,255,255,.55)") : "rgba(255,255,255,.55)", 10, true);
+                });
+            }
+
+            if (state.floor === "protect") {
+                const used = state.assets.reduce((acc, a) => acc + a.controls.length, 0);
+                drawText(`Budget: ${Math.max(0, state.protectBudget - used)}/${state.protectBudget}`, 545, 220, "rgba(255,255,255,.70)", 15, true);
+
+                const map = { crm: [70, 100], hr: [203, 225], web: [335, 100], files: [70, 350], prod: [335, 350] };
+                state.assets.forEach(a => {
+                    const [x, y] = map[a.id];
+                    const isCrit = (a.critical === true);
+                    drawRect(x, y, 90, 60, isCrit ? "rgba(255,176,32,.09)" : "rgba(255,255,255,.03)", isCrit ? "rgba(255,176,32,.45)" : "rgba(255,255,255,.16)");
+                    drawText(a.id.toUpperCase(), x + 8, y + 18, isCrit ? "rgba(255,176,32,.92)" : "rgba(255,255,255,.75)", 12, true);
+                    drawText("Controls:", x + 8, y + 36, "rgba(255,255,255,.55)", 10, true);
+                    drawText(controlsListText(a), x + 8, y + 50, "rgba(53,208,255,.75)", 10, true);
+                });
+            }
+
+            if (state.floor === "detect") {
+                drawText("SOC Console: classify logs and confirm.", 60, 105, "rgba(255,255,255,.75)", 13);
+                drawText("Logs & alerts", 205, 195, "rgba(53,208,255,.75)", 15, true);
+                drawText("SOC Console", 212, 280, "rgba(140,255,0,3)", 15, true);
+            }
+
+            if (state.floor === "respond") {
+                drawText(`Urgency: ${state.respond.running ? "ON" : "OFF"} • Timer: ${state.respond.timer}s`, 80, 120, "rgba(255,255,255,.75)", 18);
+                const ids = ["soc", "srv", "office", "net"];
+                const pos = { soc: [70, 170], srv: [270, 170], office: [70, 300], net: [270, 300] };
+                ids.forEach(id => {
+                    const r = state.respond.rooms.find(x => x.id === id);
+                    const [x, y] = pos[id];
+                    const fill = r.contained ? "rgba(51,209,122,.10)" : (r.compromised ? "rgba(255,75,110,.10)" : "rgba(255,255,255,.03)");
+                    const stroke = r.contained ? "rgba(51,209,122,.55)" : (r.compromised ? "rgba(255,75,110,.55)" : "rgba(255,255,255,.18)");
+                    drawRect(x, y, 160, 100, fill, stroke);
+                    drawText(r.name, x + 10, y + 26, "rgba(255,255,255,.85)", 16, true);
+                    drawText(r.contained ? "CONTAINED" : (r.compromised ? "COMPROMISED" : "OK"), x + 10, y + 50,
+                        r.contained ? "rgba(51,209,122,.85)" : (r.compromised ? "rgba(255,75,110,.90)" : "rgba(255,255,255,.55)"), 18, true);
+                });
+            }
+
+            if (state.floor === "recover") {
+                const map = { crm: [70, 100], hr: [203, 225], web: [335, 100], files: [70, 350], prod: [335, 350] };
+                state.assets.forEach(a => {
+                    const [x, y] = map[a.id];
+                    //const fill = a.compromised ? "rgba(255,176,32,.10)" : "rgba(51,209,122,.08)";
+                    //const stroke = a.compromised ? "rgba(255,176,32,.55)" : "rgba(51,209,122,.55)";
+                    const fill = a.compromised ? "rgba(255,176,32,.10)" : "rgba(255,176,32,.10)";
+                    const stroke = a.compromised ? "rgba(255,176,32,.55)" : "rgba(255,176,32,.55)";
+                    drawRect(x, y, 90, 60, fill, stroke);
+                    drawText(a.id.toUpperCase(), x + 8, y + 18, "rgba(255,255,255,.85)", 12, true);
+                    const ch = state.recover.restoreChoices[a.id] || "—";
+                    drawText(`Restore: ${ch}`, x + 8, y + 40, "rgba(255,255,255,.60)", 11, true);
+                });
+            }
+
+            hotspots
+                .filter(h => h.id === "soc" || h.id === "finish" || h.id === "imp_seg" || h.id === "imp_ctrl" || h.id.startsWith("mod_"))
+                .forEach(h => drawHotspot(h, p));
+
+            drawBanner();
+        }
+
+        function draw() {
+            setHotspots();
+            renderHud();
+            const p = floorPalette(state.floor);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = p.base;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (state.floor === "home") drawHomeScreen(p);
+            else if (state.floor === "report") drawReportScreen(p);
+            else drawLevel(p);
+
+            requestAnimationFrame(draw);
+        }
+
+        /* =========================
+           Input
+           ========================= */
+        let mouseDesign = { x: 0, y: 0 };
+
+        function getDesignCoordsFromEvent(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mx = (e.clientX - rect.left) * scaleX;
+            const my = (e.clientY - rect.top) * scaleY;
+            return { x: mx * (960 / canvas.width), y: my * (540 / canvas.height) };
+        }
+        function isOver(h) {
+            const d = mouseDesign;
+            return d.x >= h.x && d.x <= h.x + h.w && d.y >= h.y && d.y <= h.y + h.h;
+        }
+
+        canvas.addEventListener("mousemove", (ev) => {
+            mouseDesign = getDesignCoordsFromEvent(ev);
+            let shown = false;
+            for (const h of hotspots) {
+                if (h.tooltip && isOver(h)) { showTooltip(h.tooltip.title, h.tooltip.body, ev.clientX, ev.clientY); shown = true; break; }
+            }
+            if (!shown) hideTooltip();
+        });
+
+        canvas.addEventListener("click", (ev) => {
+            setAction();
+            mouseDesign = getDesignCoordsFromEvent(ev);
+            for (const h of hotspots) { if (isOver(h)) { h.click(); break; } }
+        });
+
+        /* =========================
+   Hint + UI actions
+   ========================= */
+        function showHint() {
+            let msg = "Open Menu for Guide/Brief/Hint or click a highlighted object.";
+
+            if (state.floor === "home") {
+                msg = "Press START to read the briefing and begin your mission.";
+            }
+            if (state.floor === "identify") {
+                msg = "Tip: Click the servers. Read their description: if the company stops working without it, mark it as 'Critical'.";
+            }
+            if (state.floor === "protect") {
+                msg = "Tip: Your budget is limited! Secure your 'Critical' assets first before spending controls on the rest.";
+            }
+            if (state.floor === "detect") {
+                msg = "Tip: Open the SOC Console. Look for strange patterns like multiple failed logins or weird IP traffic to mark as 'Suspicious'.";
+            }
+            if (state.floor === "respond") {
+                msg = "Tip: Find the real source of the attack to 'Isolate' it. Use 'Mitigate' on other rooms to buy time and save productivity.";
+            }
+            if (state.floor === "recover") {
+                msg = "Tip: A 'Clean' backup is safer for critical servers, while 'Latest' is faster for less important ones.";
+            }
+            if (state.floor === "report") {
+                msg = "Tip: Click DETAILS to analyze your run, then go HOME to play again and beat your score!";
+            }
+
+            toastHint(msg);
+        }
+
+
+        $("#btnMenu").onclick = () => { setAction(); openMenu(); };
+
+        setInterval(() => {
+            const idle = Date.now() - (state.lastActionAt || Date.now());
+            if (idle > 20000 && ui.hintBox.style.display !== "block") showHint();
+        }, 2500);
+
+        /* =========================
+           Boot
+           ========================= */
+        (function boot() {
+            renderHud();
+            renderLogbook();
+            renderBest();
+            setFloor(state.floor, false);
+            requestAnimationFrame(draw);
+            saveAutoslot();
+        })();
+    </script>
+</body>
+
+</html>
