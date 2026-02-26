@@ -609,15 +609,15 @@
 
         const MODULES = [
             {
-                id: "mfa", short: "MFA", label: "MFA (second factor)", sec: +10, prod: -6,
+                id: "mfa", short: "MFA", label: "MFA (second factor)", sec: +10, prod: -8,
                 tip: "Second factor (OTP/app). Reduces risk if a password is stolen. Great security boost, but drops employee productivity."
             },
             {
-                id: "patch", short: "Patch", label: "Patch (updates)", sec: +12, prod: -4,
+                id: "patch", short: "Patch", label: "Patch (updates)", sec: +12, prod: -6,
                 tip: "Updates systems/software. Reduces exploits on known vulnerabilities. Top-tier defense, though system reboots cause moderate downtime in productivity."
             },
             {
-                id: "fw", short: "FW", label: "Firewall", sec: +9, prod: -3,
+                id: "fw", short: "FW", label: "Firewall", sec: +9, prod: -4,
                 tip: "Network rules: limits risky traffic and lateral movements. Strong network protection with only a slight disruption to daily operations."
             },
             {
@@ -1808,10 +1808,10 @@
                 const correct = (roomId === state.respond.isolateTarget);
 
                 const isolateCosts = {
-                    srv: 8,
-                    soc: 12,
-                    office: 22,
-                    net: 30
+                    srv: 5,
+                    soc: 15,
+                    office: 25,
+                    net: 40
                 };
                 const cost = isolateCosts[roomId];
 
@@ -1975,11 +1975,13 @@
                 if (a.critical) {
                     applyScoreDelta({ sec: 10 }, 'Recover: Clean on Critical');
                 } else {
-                    applyScoreDelta({ prod: -8 }, 'Recover: Clean on Non-Critical (Slow)');
+                    // PUNIZIONE DIRETTA: bypassa lo smoothing e toglie esattamente 14!
+                    state.productivity = clamp(state.productivity - 14, 0, 100);
                 }
                 addLog('Recover', `${a.name} restored with Clean.`);
                 setAction(); saveAutoslot(); closeModal(); onModalClosed();
             };
+
         }
 
 
@@ -2500,7 +2502,7 @@
             }
 
             if (state.floor === "respond") {
-                drawText(`Urgency: ${state.respond.running ? "ON" : "OFF"} • Timer: ${state.respond.timer}s`, 80, 120, "rgba(255,255,255,.75)", 18);
+                drawText(`Urgency: ${state.respond.running ? "ON" : "OFF"} • Timer: ${state.respond.timer}s`, 60, 120, "rgba(255,255,255,.75)", 18);
                 const ids = ["soc", "srv", "office", "net"];
                 const pos = { soc: [70, 170], srv: [270, 170], office: [70, 300], net: [270, 300] };
                 ids.forEach(id => {
